@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة القانون والمحاماة المتكاملة</title>
+    <!-- Google Fonts: Cairo & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css?v=1.0.6">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+    <!-- Gorgeous Glassmorphism Login Screen -->
+    <div class="login-overlay" id="login-overlay">
+        <div class="login-card">
+            <div class="login-header">
+                <i class="fa-solid fa-scale-balanced login-logo"></i>
+                <h1>بوابة القانون والمحاماة</h1>
+                <p>منصة المحامي الذكي لإدارة القضايا والبحث التشريعي</p>
+            </div>
+            <div class="login-body">
+                <!-- Tabs for switching between Login and Signup -->
+                <div class="login-tabs" style="display: flex; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                    <button class="btn btn-secondary btn-block active" id="tab-login-btn" style="flex: 1; font-weight: 600; font-size: 0.9rem;">تسجيل الدخول</button>
+                    <button class="btn btn-secondary btn-block" id="tab-signup-btn" style="flex: 1; font-weight: 600; font-size: 0.9rem;">إنشاء حساب</button>
+                </div>
+
+                <!-- Google Sign In Button -->
+                <div id="google-signin-btn-container" style="display:flex; justify-content:center; margin-bottom: 15px;"></div>
+                
+                <div class="or-divider" style="margin: 10px 0; text-align: center; color: var(--text-muted); font-size: 0.8rem; border-bottom: 1px solid var(--border); line-height: 0.1em;"><span style="background: var(--bg-card); padding: 0 10px;">أو بالبريد الإلكتروني</span></div>
+                
+                <!-- Email/Password Login Form -->
+                <div id="login-form-block" style="margin-top: 15px;">
+                    <div class="form-group" style="margin-bottom: 12px; text-align: right;">
+                        <label style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 4px;">البريد الإلكتروني</label>
+                        <input type="email" id="login-email" class="form-control" placeholder="name@example.com" style="width: 100%;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 15px; text-align: right;">
+                        <label style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 4px;">كلمة المرور</label>
+                        <input type="password" id="login-password" class="form-control" placeholder="••••••••" style="width: 100%;">
+                    </div>
+                    <button class="btn btn-primary btn-block" id="email-login-btn" style="width:100%;">تسجيل الدخول</button>
+                </div>
+
+                <!-- Email/Password Signup Form (Hidden initially) -->
+                <div id="signup-form-block" style="display: none; margin-top: 15px;">
+                    <div class="form-group" style="margin-bottom: 12px; text-align: right;">
+                        <label style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 4px;">الاسم الكامل</label>
+                        <input type="text" id="signup-name" class="form-control" placeholder="الأستاذ ..." style="width: 100%;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px; text-align: right;">
+                        <label style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 4px;">البريد الإلكتروني</label>
+                        <input type="email" id="signup-email" class="form-control" placeholder="name@example.com" style="width: 100%;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 15px; text-align: right;">
+                        <label style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 4px;">كلمة المرور</label>
+                        <input type="password" id="signup-password" class="form-control" placeholder="••••••••" style="width: 100%;">
+                    </div>
+                    <button class="btn btn-primary btn-block" id="email-signup-btn" style="width:100%;">إنشاء حساب جديد</button>
+                </div>
+
+                <!-- Development Sign In Bypass (Keep it collapsed/hidden inside a small link for debugging) -->
+                <div style="margin-top: 15px; text-align: center;">
+                    <a href="#" id="toggle-dev-login-link" style="font-size: 0.75rem; color: var(--text-muted); text-decoration: none;">تخطي تسجيل الدخول للتجربة المحلية...</a>
+                </div>
+                <div class="dev-login-form" id="dev-login-block" style="display:none; margin-top:10px;">
+                    <input type="email" id="dev-email-input" class="form-control" placeholder="أدخل البريد الإلكتروني للتجربة...">
+                    <button class="btn btn-secondary btn-block" id="dev-login-btn" style="margin-top:10px; width:100%;">دخول تجريبي</button>
+                </div>
+            </div>
+            <div class="login-footer">
+                <p>© 2026 بوابة القانون والعدالة. جميع الحقوق محفوظة.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        
+        <!-- Sidebar Navigation Menu -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-area">
+                    <i class="fa-solid fa-scale-balanced logo-icon"></i>
+                    <h2>بوابة القانون</h2>
+                    <span class="badge">المتكاملة</span>
+                </div>
+            </div>
+
+            <!-- Main Menu Links -->
+            <ul class="sidebar-menu">
+                <li class="menu-item active" data-tab="dashboard">
+                    <i class="fa-solid fa-chart-pie"></i> لوحة التحكم العامة
+                </li>
+                <li class="menu-item" data-tab="chat">
+                    <i class="fa-solid fa-brain"></i> بدوي المساعد الذكي (AI)
+                </li>
+                <li class="menu-item" data-tab="legislation">
+                    <i class="fa-solid fa-gavel"></i> موسوعة التشريعات
+                </li>
+                <li class="menu-item" data-tab="rulings">
+                    <i class="fa-solid fa-building-columns"></i> أحكام محكمة النقض
+                </li>
+                <li class="menu-item" data-tab="templates">
+                    <i class="fa-solid fa-file-signature"></i> صيغ العقود والدعاوى
+                </li>
+                <li class="menu-item" data-tab="sync">
+                    <i class="fa-solid fa-folder-tree"></i> مزامنة المكتبة المحلية
+                </li>
+                <li class="menu-item" data-tab="contract-builder">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> مولّد العقود الذكي
+                </li>
+                <li class="menu-item" data-tab="analyzer">
+                    <i class="fa-solid fa-magnifying-glass-chart"></i> محلل المستندات
+                </li>
+                <li class="menu-item" data-tab="cases">
+                    <i class="fa-solid fa-briefcase"></i> إدارة القضايا والموكلين
+                </li>
+                <li class="menu-item" data-tab="calculator">
+                    <i class="fa-solid fa-calendar-days"></i> حاسبة المواعيد القانونية
+                </li>
+                <li class="menu-item" data-tab="compare">
+                    <i class="fa-solid fa-code-compare"></i> مقارنة النصوص القانونية
+                </li>
+                <li class="menu-item" data-tab="translate">
+                    <i class="fa-solid fa-language"></i> الترجمة القانونية الفورية
+                </li>
+                <li class="menu-item" data-tab="updates">
+                    <i class="fa-solid fa-bell"></i> التحديثات والجريدة الرسمية
+                </li>
+            </ul>
+
+            <!-- Sidebar Chat History Sessions -->
+            <div class="sidebar-chat-sessions-block" style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
+                <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; font-weight: 600;">
+                    <span><i class="fa-solid fa-clock-rotate-left"></i> جلسات الدردشة</span>
+                    <button class="btn btn-link btn-xs" id="new-chat-session-btn" style="padding:0; font-size:1.1rem; color:var(--primary); background: none; border: none; cursor: pointer;" title="محادثة جديدة"><i class="fa-solid fa-plus-circle"></i></button>
+                </h4>
+                <ul class="sidebar-chat-list" id="sidebar-chat-list" style="list-style: none; padding: 0 8px; margin: 0; max-height: 150px; overflow-y: auto;">
+                    <!-- Dynamic chat sessions list -->
+                </ul>
+            </div>
+
+            <div class="sidebar-section-mini">
+                <div class="active-folder-badge">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <span id="sidebar-path-label" title="جاري التحميل...">جاري التحميل...</span>
+                </div>
+            </div>
+
+            <!-- Sidebar Footer Settings -->
+            <div class="sidebar-footer" style="padding: 10px 16px; display: flex; flex-direction: column; gap: 10px;">
+                <div class="user-profile-section" id="user-profile-section" style="display:none; align-items:center; border-top: 1px solid var(--border); padding-top:10px; width: 100%;">
+                    <img id="user-avatar" src="" alt="Avatar" style="width:32px; height:32px; border-radius:50%; border:2px solid var(--primary); margin-left:8px;">
+                    <div class="user-info" style="display:flex; flex-direction:column; align-items:flex-start; flex-grow: 1; overflow: hidden; text-align: right;">
+                        <span id="user-name" style="font-weight:600; font-size:0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; color: var(--text);"></span>
+                        <span id="user-email" style="font-size:0.7rem; color:var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;"></span>
+                    </div>
+                    <button class="btn btn-icon" id="logout-btn" title="تسجيل الخروج" style="color:#ef4444; background: none; border: none; cursor: pointer; padding: 4px;"><i class="fa-solid fa-right-from-bracket"></i></button>
+                </div>
+                <button class="btn btn-secondary btn-block" id="settings-trigger">
+                    <i class="fa-solid fa-gear"></i> إعدادات المحرك
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace (Dynamic content shifts based on active menu item) -->
+        <div class="workspace-container">
+            
+            <!-- Tab 1: Dashboard Panel -->
+            <section id="tab-dashboard" class="tab-content active">
+                <header class="workspace-header">
+                    <h2>لوحة التحكم والمراقبة العامة</h2>
+                    <div class="header-status-info" style="display: flex; align-items: center; gap: 10px;">
+                        <span class="status-dot online" id="status-dot-indicator"></span>
+                        <span id="active-provider-label" class="provider-label-top">جاري تحميل المحرك...</span>
+                        <span id="online-offline-badge" class="badge-mini" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">جاري الكشف...</span>
+                    </div>
+                </header>
+                
+                <div class="workspace-body scrollable">
+                    <!-- Statistics Grid -->
+                    <div class="stats-grid">
+                        <div class="stat-card" onclick="switchTab('sync')" style="cursor: pointer;">
+                            <div class="stat-icon-wrapper blue"><i class="fa-solid fa-book"></i></div>
+                            <div class="stat-details">
+                                <h3 id="stat-books-count">0</h3>
+                                <p>كتب مكتبتك المزامنة</p>
+                            </div>
+                        </div>
+                        <div class="stat-card" onclick="switchTab('legislation')" style="cursor: pointer;">
+                            <div class="stat-icon-wrapper green"><i class="fa-solid fa-gavel"></i></div>
+                            <div class="stat-details">
+                                <h3>3</h3>
+                                <p>موسوعات القوانين</p>
+                            </div>
+                        </div>
+                        <div class="stat-card" onclick="switchTab('rulings')" style="cursor: pointer;">
+                            <div class="stat-icon-wrapper gold"><i class="fa-solid fa-scale-balanced"></i></div>
+                            <div class="stat-details">
+                                <h3>3</h3>
+                                <p>أحكام قضائية معتمدة</p>
+                            </div>
+                        </div>
+                        <div class="stat-card" onclick="switchTab('templates')" style="cursor: pointer;">
+                            <div class="stat-icon-wrapper cyan"><i class="fa-solid fa-file-contract"></i></div>
+                            <div class="stat-details">
+                                <h3>3</h3>
+                                <p>صيغ وعقود نموذجية</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Layout rows -->
+                    <div class="dashboard-columns">
+                        <!-- Quick Ask Widget -->
+                        <div class="dash-card flex-grow-2">
+                            <div class="dash-card-header">
+                                <h3><i class="fa-solid fa-paper-plane"></i> استفسار قانوني سريع (بدوي المساعد الذكي)</h3>
+                            </div>
+                            <div class="dash-card-body">
+                                <p class="card-desc">اطرح سؤالاً سريعاً ليقوم الذكاء الاصطناعي بالبحث الفوري داخل أسطوانة كتبك والإجابة بالمواد والمراجع:</p>
+                                <div class="quick-ask-box">
+                                    <button type="button" class="btn btn-secondary btn-xs" id="quick-ask-mic-btn" title="إدخال صوتي" style="background: none; border: none; padding: 0 4px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-microphone"></i></button>
+                                    <input type="text" id="quick-ask-input" placeholder="مثال: ما هو تعريف عقد الإيجار وشروطه؟">
+                                    <button class="btn btn-primary" id="quick-ask-btn">اسأل بدوي</button>
+                                </div>
+                                <div id="resume-chat-container" style="margin-top: 10px; display: none; text-align: right;">
+                                    <button class="btn btn-link btn-xs" id="resume-last-chat-btn" style="padding: 0; font-size: 0.8rem; color: var(--primary); display: inline-flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer; text-decoration: none; font-family: var(--font-arabic);" title="متابعة آخر محادثة نشطة">
+                                        <i class="fa-solid fa-clock-rotate-left"></i> متابعة آخر محادثة نشطة...
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Info Card -->
+                        <div class="dash-card">
+                            <div class="dash-card-header">
+                                <h3><i class="fa-solid fa-lightbulb"></i> إرشاد قانوني</h3>
+                            </div>
+                            <div class="dash-card-body">
+                                <div class="guide-box">
+                                    <p>أنت تعمل على النسخة الاحترافية المحلية. يمكنك كتابة صحائف الدعاوى وصياغة العقود وتخصيصها بدقة باستخدام المحرر، والبحث السريع في بنود القوانين المدنية والجنائية ومزامنة أسطواناتك.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-columns" style="margin-top: 24px;">
+                        <div class="dash-card flex-grow-1">
+                            <div class="dash-card-header">
+                                <h3><i class="fa-solid fa-gavel"></i> موسوعة التشريعات السريعة</h3>
+                            </div>
+                            <div class="dash-card-body">
+                                <ul class="quick-links-list">
+                                    <li><strong>القانون المدني:</strong> المادة 147 (العقد شريعة المتعاقدين).</li>
+                                    <li><strong>قانون العقوبات:</strong> المادة 336 (عقوبة وجريمة النصب).</li>
+                                    <li><strong>قانون العمل:</strong> المادة 47 (مدد الإجازات السنوية للعمال).</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Admin Control Dashboard Widget -->
+                    <div class="dash-card admin-dashboard-widget" id="admin-dashboard-widget" style="display:none; margin-top: 24px; border: 1px dashed var(--primary);">
+                        <div class="dash-card-header" style="background: rgba(14, 165, 233, 0.05);">
+                            <h3 style="display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-shield-halved"></i> إحصائيات لوحة تحكم المسؤول (الأدمن)</h3>
+                        </div>
+                        <div class="dash-card-body" style="padding: 20px;">
+                            <div class="admin-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+                                <div class="admin-stat-box" style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+                                    <div style="font-size: 0.8rem; color: var(--text-muted); text-align: right;">المستخدمين المسجلين</div>
+                                    <div id="admin-stat-users" style="font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-top: 4px; text-align: right;">0</div>
+                                </div>
+                                <div class="admin-stat-box" style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+                                    <div style="font-size: 0.8rem; color: var(--text-muted); text-align: right;">الكتب والمستندات</div>
+                                    <div id="admin-stat-docs" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-blue); margin-top: 4px; text-align: right;">0</div>
+                                </div>
+                                <div class="admin-stat-box" style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+                                    <div style="font-size: 0.8rem; color: var(--text-muted); text-align: right;">الفقرات المفهرسة</div>
+                                    <div id="admin-stat-chunks" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-purple); margin-top: 4px; text-align: right;">0</div>
+                                </div>
+                                <div class="admin-stat-box" style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+                                    <div style="font-size: 0.8rem; color: var(--text-muted); text-align: right;">حجم الفهرس على القرص</div>
+                                    <div id="admin-stat-size" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-orange); margin-top: 4px; text-align: right;">0.00 MB</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 2: AI Assistant Panel -->
+            <section id="tab-chat" class="tab-content">
+                <header class="workspace-header">
+                    <h2>بدوي المساعد الذكي (RAG Chat)</h2>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-secondary btn-xs" id="toggle-voice-reply-btn" title="تفعيل/تعطيل القراءة التلقائية للإجابات" style="display: flex; align-items: center; gap: 6px; padding: 4px 12px; font-size: 0.8rem;">
+                            <i class="fa-solid fa-volume-xmark"></i> القراءة التلقائية: <span id="voice-reply-status">معطلة</span>
+                        </button>
+                        <button class="btn btn-secondary" id="clear-chat-btn-2"><i class="fa-solid fa-trash-can"></i> مسح المحادثة</button>
+                    </div>
+                </header>
+                
+                <div class="chat-layout-wrapper">
+                    <main class="chat-area-custom">
+                        <div class="messages-container" id="messages-container">
+                            <div class="message system-message">
+                                <div class="message-content">
+                                    <div class="welcome-box">
+                                        <i class="fa-solid fa-brain welcome-icon"></i>
+                                        <h1>بدوي المساعد الذكي تحت تصرفك</h1>
+                                        <p>يسأل الذكاء الاصطناعي ويجيب بدقة بناءً على مكتبة الكتب والأسطوانات القانونية المزامنة في المجلد المختار على جهازك. سيقوم بربط الإجابة بالمراجع والصفحات.</p>
+                                        <div class="suggestions-grid">
+                                            <button class="suggestion-chip">ما هو الشرط الجزائي وقيمته في القانون المدني؟</button>
+                                            <button class="suggestion-chip">ما هي حالات فصل العامل طبقاً لقانون العمل؟</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <footer class="chat-footer-custom">
+                            <form id="chat-form" class="chat-form" style="display: flex; gap: 8px;">
+                                <button type="button" class="btn btn-secondary" id="chat-mic-btn" title="إدخال صوتي" style="padding: 0 16px; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-microphone"></i></button>
+                                <input type="text" id="chat-input" placeholder="اكتب استشارتك القانونية هنا بالتفصيل..." autocomplete="off" style="flex-grow: 1;">
+                                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i></button>
+                            </form>
+                        </footer>
+                    </main>
+                    
+                    <!-- Citations Sidebar -->
+                    <aside class="sources-sidebar-custom" id="sources-sidebar">
+                        <div class="sources-header">
+                            <h3><i class="fa-solid fa-bookmark"></i> الفقرات والبنود المستند إليها</h3>
+                            <button class="btn btn-icon" id="close-sources-btn"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div class="sources-content" id="sources-content">
+                            <p class="no-sources-selected">اضغط على أي مصدر مصاحب للإجابة لعرض الاقتباس الأصلي هنا بالتفصيل.</p>
+                        </div>
+                    </aside>
+                </div>
+            </section>
+
+            <!-- Tab 3: Legislation Encyclopedia Panel -->
+            <section id="tab-legislation" class="tab-content">
+                <header class="workspace-header">
+                    <h2>موسوعة القوانين والتشريعات</h2>
+                </header>
+                <div class="workspace-body scrollable">
+                    <div class="search-bar-panel">
+                        <div class="filter-dropdown-wrapper">
+                            <select id="legislation-search-mode" class="form-control" style="width: 150px;">
+                                <option value="local">البحث التقليدي</option>
+                                <option value="ai">البحث الدلالي (AI)</option>
+                            </select>
+                        </div>
+                        <div class="search-input-wrapper" style="flex-grow: 1;">
+                            <i class="fa-solid fa-magnifying-glass search-bar-icon"></i>
+                            <input type="text" id="legislation-search-input" placeholder="ابحث عن مادة أو كلمة في القوانين... (مثال: حسن النية، تعويض، خطأ)">
+                        </div>
+                        <button class="btn btn-primary" id="legislation-search-btn">بحث</button>
+                    </div>
+
+                    <!-- Laws Listing -->
+                    <div id="legislation-list-container">
+                        <div class="loading-spinner">جاري تحميل القوانين...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 4: Court Rulings Panel -->
+            <section id="tab-rulings" class="tab-content">
+                <header class="workspace-header">
+                    <h2>موسوعة أحكام محكمة النقض والمبادئ القضائية</h2>
+                </header>
+                <div class="workspace-body scrollable">
+                    <div class="search-bar-panel">
+                        <div class="filter-dropdown-wrapper">
+                            <select id="ruling-category-select" class="form-control" style="width: 120px;">
+                                <option value="">كل التصنيفات</option>
+                                <option value="مدني">مدني</option>
+                                <option value="جنائي">جنائي</option>
+                                <option value="دستوري">دستوري</option>
+                            </select>
+                        </div>
+                        <div class="filter-dropdown-wrapper">
+                            <select id="ruling-search-mode" class="form-control" style="width: 140px;">
+                                <option value="local">البحث التقليدي</option>
+                                <option value="ai">البحث الدلالي (AI)</option>
+                            </select>
+                        </div>
+                        <div class="search-input-wrapper" style="flex-grow: 1;">
+                            <i class="fa-solid fa-magnifying-glass search-bar-icon"></i>
+                            <input type="text" id="ruling-search-input" placeholder="ابحث في الأحكام والمبادئ... (مثال: العقد شريعة المتعاقدين، جريمة النصب)">
+                        </div>
+                        <button class="btn btn-primary" id="ruling-search-btn">بحث</button>
+                    </div>
+
+                    <!-- Rulings List -->
+                    <div class="rulings-list" id="rulings-list-container">
+                        <div class="loading-spinner">جاري تحميل الأحكام...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 5: Legal Templates & Contracts Panel -->
+            <section id="tab-templates" class="tab-content">
+                <header class="workspace-header">
+                    <h2>صيغ العقود، الدعاوى والعرائض القانونية</h2>
+                </header>
+                <div class="templates-layout-wrapper">
+                    <!-- Left Sidebar (Templates List) -->
+                    <aside class="templates-selector-panel">
+                        <h3>قائمة الصيغ المتوفرة</h3>
+                        <div class="template-categories-list" id="templates-list-container">
+                            <!-- Populated dynamically -->
+                            <div class="loading-spinner">جاري تحميل الصيغ...</div>
+                        </div>
+                    </aside>
+
+                    <!-- Right Column (Template Editor) -->
+                    <main class="templates-editor-panel">
+                        <div class="editor-header">
+                            <h3 id="active-template-title">حدد صيغة قانونية للبدء في صياغتها</h3>
+                            <button class="btn btn-primary" id="copy-template-btn" disabled>
+                                <i class="fa-solid fa-copy"></i> نسخ النص الكامل
+                            </button>
+                        </div>
+                        <div class="editor-body">
+                            <textarea id="template-editor-textarea" placeholder="سيظهر نص الصيغة هنا، ويمكنك التعديل عليه وكتابة بيانات الأطراف والتواريخ مباشرة قبل النسخ..." disabled></textarea>
+                        </div>
+                    </main>
+                </div>
+            </section>
+
+            <!-- Tab 6: Folder Sync & Document Manager -->
+            <section id="tab-sync" class="tab-content">
+                <header class="workspace-header">
+                    <h2>إدارة ومزامنة الكتب القانونية المحلية</h2>
+                </header>
+                <div class="workspace-body scrollable">
+                    <div class="sync-dashboard-card">
+                        <div class="sync-card-info">
+                            <i class="fa-solid fa-folder-closed folder-big-icon"></i>
+                            <div class="folder-details-block">
+                                <h3>المجلد المحلي النشط</h3>
+                                <p id="sync-library-path-label">جاري القراءة...</p>
+                                <small>يمكنك تغيير مسار المجلد من زر "إعدادات المحرك" بالأسفل</small>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary btn-lg" id="sync-library-btn">
+                            <i class="fa-solid fa-rotate sync-icon"></i> ابدأ المزامنة والفهرسة الآن
+                        </button>
+                    </div>
+
+                    <div class="sync-progress-details-panel" id="progress-container" style="display: none; margin-bottom: 24px;">
+                        <!-- Mini Sync Stats -->
+                        <div class="sync-live-stats">
+                            <div class="sync-stat-item">
+                                <span class="sync-stat-title">الكتاب الحالي:</span>
+                                <span class="sync-stat-val" id="sync-stat-file">-</span>
+                            </div>
+                            <div class="sync-stat-item">
+                                <span class="sync-stat-title">إجمالي الملفات:</span>
+                                <span class="sync-stat-val" id="sync-stat-files-ratio">0 / 0</span>
+                            </div>
+                            <div class="sync-stat-item">
+                                <span class="sync-stat-title">الصفحة:</span>
+                                <span class="sync-stat-val" id="sync-stat-pages-ratio">0 / 0</span>
+                            </div>
+                            <div class="sync-stat-item">
+                                <span class="sync-stat-title">سرعة القراءة:</span>
+                                <span class="sync-stat-val" id="sync-stat-speed">0.0 ص/ث</span>
+                            </div>
+                            <div class="sync-stat-item">
+                                <span class="sync-stat-title">الزمن المنقضي:</span>
+                                <span class="sync-stat-val" id="sync-stat-time">0.0 ثانية</span>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar Wrapper -->
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar" id="progress-bar" style="width: 0%;"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text">جاري فحص المجلد...</span>
+
+                        <!-- Monospace Terminal Log Console -->
+                        <div class="terminal-console-wrapper">
+                            <div class="terminal-header">
+                                <span class="terminal-title"><i class="fa-solid fa-terminal"></i> سجل العمليات الفورية (Real-time logs)</span>
+                                <span class="terminal-indicator">● فعال</span>
+                            </div>
+                            <div class="terminal-console" id="sync-console"></div>
+                        </div>
+                    </div>
+
+                    <!-- Sync Log and File List -->
+                    <div class="dash-card" style="margin-top: 24px;">
+                        <div class="dash-card-header">
+                            <h3><i class="fa-solid fa-list-check"></i> ملفات كتبك المزامنة في قاعدة البيانات</h3>
+                        </div>
+                        <div class="dash-card-body" style="padding: 16px;">
+                            <div class="docs-list" id="docs-list">
+                                <div class="empty-docs">لا توجد كتب مؤرشفة حالياً. اضغط على مزامنة للبدء.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 7: Smart Contract Builder -->
+            <section id="tab-contract-builder" class="tab-content">
+                <header class="workspace-header">
+                    <h2><i class="fa-solid fa-wand-magic-sparkles"></i> مولّد العقود الذكي بالذكاء الاصطناعي</h2>
+                </header>
+                <div class="contract-builder-layout">
+                    <div class="contract-form-panel">
+                        <div class="dash-card">
+                            <div class="dash-card-header">
+                                <h3><i class="fa-solid fa-sliders"></i> بيانات العقد</h3>
+                            </div>
+                            <div class="dash-card-body" style="padding: 20px;">
+                                <div class="form-group">
+                                    <label>نوع العقد <span style="color:#f97316">*</span></label>
+                                    <select id="cb-contract-type" class="form-control">
+                                        <option value="">— اختر نوع العقد —</option>
+                                        <option value="بيع عقار">بيع عقار</option>
+                                        <option value="إيجار عقار سكني">إيجار عقار سكني</option>
+                                        <option value="إيجار عقار تجاري">إيجار عقار تجاري</option>
+                                        <option value="توريد بضائع">توريد بضائع</option>
+                                        <option value="عمل (توظيف)">عمل (توظيف)</option>
+                                        <option value="وكالة قانونية">وكالة قانونية</option>
+                                        <option value="مقاولة">مقاولة</option>
+                                        <option value="شراكة تجارية">شراكة تجارية</option>
+                                        <option value="قرض مالي">قرض مالي</option>
+                                        <option value="نقل ملكية">نقل ملكية</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>اسم الطرف الأول (البائع / المؤجر / الموكِّل)</label>
+                                    <input type="text" id="cb-party1" class="form-control" placeholder="الاسم الثلاثي">
+                                </div>
+                                <div class="form-group">
+                                    <label>الرقم القومي / السجل التجاري للطرف الأول</label>
+                                    <input type="text" id="cb-party1-id" class="form-control" placeholder="رقم الهوية">
+                                </div>
+                                <div class="form-group">
+                                    <label>اسم الطرف الثاني (المشتري / المستأجر / الموكَّل)</label>
+                                    <input type="text" id="cb-party2" class="form-control" placeholder="الاسم الثلاثي">
+                                </div>
+                                <div class="form-group">
+                                    <label>الرقم القومي / السجل التجاري للطرف الثاني</label>
+                                    <input type="text" id="cb-party2-id" class="form-control" placeholder="رقم الهوية">
+                                </div>
+                                <div class="form-group">
+                                    <label>موضوع العقد (وصف المحل)</label>
+                                    <input type="text" id="cb-subject" class="form-control" placeholder="مثال: شقة سكنية الدور الثالث — 12 شارع النصر، المعادي">
+                                </div>
+                                <div class="form-group">
+                                    <label>القيمة المالية / المبلغ</label>
+                                    <input type="text" id="cb-amount" class="form-control" placeholder="مثال: 500,000 جنيه مصري">
+                                </div>
+                                <div class="form-group">
+                                    <label>تاريخ ابتداء العقد</label>
+                                    <input type="date" id="cb-start-date" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>تاريخ انتهاء العقد (إن وُجد)</label>
+                                    <input type="date" id="cb-end-date" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label style="display: flex; align-items: center; justify-content: space-between;">
+                                        <span>شروط خاصة إضافية (اختياري)</span>
+                                        <button type="button" class="btn btn-secondary btn-xs" id="cb-terms-mic-btn" style="padding: 2px 8px; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); cursor: pointer;" title="إدخال صوتي"><i class="fa-solid fa-microphone"></i> إدخال صوتي</button>
+                                    </label>
+                                    <textarea id="cb-special-terms" class="form-control" rows="3" placeholder="أي شروط خاصة تريد إضافتها للعقد..."></textarea>
+                                </div>
+                                <button class="btn btn-primary" id="cb-generate-btn" style="width:100%; margin-top:8px;">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> أنشئ العقد بالذكاء الاصطناعي
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="contract-output-panel">
+                        <div class="dash-card" style="height: 100%;">
+                            <div class="dash-card-header">
+                                <h3><i class="fa-solid fa-file-contract"></i> العقد المُنشأ</h3>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-secondary" id="cb-speak-btn" disabled title="استماع صوتي">
+                                        <i class="fa-solid fa-volume-high"></i> استماع صوتي
+                                    </button>
+                                    <button class="btn btn-secondary" id="cb-copy-btn" disabled>
+                                        <i class="fa-solid fa-copy"></i> نسخ العقد
+                                    </button>
+                                    <button class="btn btn-primary" id="cb-print-btn" disabled>
+                                        <i class="fa-solid fa-print"></i> طباعة / تصدير PDF
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="dash-card-body" style="padding:0; height: calc(100% - 60px);">
+                                <div id="cb-output-area" class="contract-output-area">
+                                    <div class="empty-placeholder-box">
+                                        <i class="fa-solid fa-wand-magic-sparkles" style="font-size: 3rem; color: var(--accent-purple); opacity:0.5;"></i>
+                                        <p>أدخل بيانات العقد واضغط "أنشئ العقد" ليقوم الذكاء الاصطناعي بكتابته كاملاً بصياغة قانونية احترافية.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 8: Document Analyzer -->
+            <section id="tab-analyzer" class="tab-content">
+                <header class="workspace-header">
+                    <h2><i class="fa-solid fa-magnifying-glass-chart"></i> محلل المستندات القانونية</h2>
+                </header>
+                <div class="analyzer-layout">
+                    <div class="analyzer-input-panel">
+                        <div class="dash-card">
+                            <div class="dash-card-header">
+                                <h3><i class="fa-solid fa-upload"></i> المستند المراد تحليله</h3>
+                            </div>
+                            <div class="dash-card-body" style="padding:20px;">
+                                <div class="upload-drop-zone" id="analyzer-drop-zone">
+                                    <i class="fa-solid fa-file-pdf" style="font-size: 2.5rem; color: #f97316; margin-bottom:12px;"></i>
+                                    <p><strong>اسحب ملف PDF هنا</strong> أو اضغط للتصفح</p>
+                                    <input type="file" id="analyzer-file-input" accept=".pdf" style="display:none;">
+                                    <button class="btn btn-secondary" id="analyzer-browse-btn" style="margin-top:10px;">
+                                        <i class="fa-solid fa-folder-open"></i> تصفح ملف PDF
+                                    </button>
+                                    <div id="analyzer-file-name" style="margin-top:10px; font-size:0.85rem; color:var(--text-muted);"></div>
+                                </div>
+                                <div class="or-divider"><span>أو</span></div>
+                                <div class="form-group">
+                                    <label>الصق نص العقد أو الحكم مباشرة:</label>
+                                    <textarea id="analyzer-text-input" class="form-control" rows="10"
+                                        placeholder="الصق نص العقد أو الحكم القضائي هنا..."></textarea>
+                                </div>
+                                <button class="btn btn-primary" id="analyzer-btn" style="width:100%; margin-top:8px;">
+                                    <i class="fa-solid fa-magnifying-glass-chart"></i> حلّل المستند الآن
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="analyzer-output-panel">
+                        <div class="dash-card" style="height:100%;">
+                            <div class="dash-card-header">
+                                <h3><i class="fa-solid fa-file-lines"></i> نتيجة التحليل القانوني</h3>
+                                <button class="btn btn-secondary" id="analyzer-copy-btn" disabled>
+                                    <i class="fa-solid fa-copy"></i> نسخ التحليل
+                                </button>
+                                <button class="btn btn-primary" id="analyzer-print-btn" disabled style="margin-right: 8px;">
+                                    <i class="fa-solid fa-print"></i> طباعة / تصدير PDF
+                                </button>
+                            </div>
+                            <div class="dash-card-body" style="padding:0; height:calc(100% - 60px);">
+                                <div id="analyzer-output-area" class="contract-output-area">
+                                    <div class="empty-placeholder-box">
+                                        <i class="fa-solid fa-magnifying-glass-chart" style="font-size: 3rem; color: var(--accent-blue); opacity:0.5;"></i>
+                                        <p>ارفع ملف PDF أو الصق نص المستند ثم اضغط "حلّل المستند" لتحصل على تقرير قانوني شامل.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 9: Case Manager -->
+            <section id="tab-cases" class="tab-content">
+                <header class="workspace-header">
+                    <h2><i class="fa-solid fa-briefcase"></i> إدارة القضايا والموكلين</h2>
+                    <button class="btn btn-primary" id="cases-add-btn">
+                        <i class="fa-solid fa-plus"></i> قضية جديدة
+                    </button>
+                </header>
+                <div class="workspace-body scrollable">
+                    <div class="cases-stats-row" id="cases-stats-row">
+                        <div class="case-stat-chip blue"><i class="fa-solid fa-folder-open"></i> <span id="cs-total">0</span> إجمالي القضايا</div>
+                        <div class="case-stat-chip green"><i class="fa-solid fa-circle-check"></i> <span id="cs-active">0</span> نشطة</div>
+                        <div class="case-stat-chip gold"><i class="fa-solid fa-clock"></i> <span id="cs-pending">0</span> معلّقة</div>
+                        <div class="case-stat-chip red"><i class="fa-solid fa-circle-xmark"></i> <span id="cs-closed">0</span> مغلقة</div>
+                    </div>
+                    <div class="dash-card" style="margin-top: 20px;">
+                        <div class="dash-card-body" style="padding:0; overflow-x: auto;">
+                            <table class="cases-table" id="cases-table">
+                                <thead>
+                                    <tr>
+                                        <th>الموكل</th>
+                                        <th>رقم القضية</th>
+                                        <th>المحكمة</th>
+                                        <th>النوع</th>
+                                        <th>الحالة</th>
+                                        <th>الجلسة القادمة</th>
+                                        <th>إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cases-tbody">
+                                    <tr><td colspan="7" class="empty-table-msg">لا توجد قضايا مسجلة. اضغط "قضية جديدة" للبدء.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 10: Deadline Calculator -->
+            <section id="tab-calculator" class="tab-content">
+                <header class="workspace-header">
+                    <h2><i class="fa-solid fa-calendar-days"></i> حاسبة المواعيد والتقادم القانوني</h2>
+                </header>
+                <div class="workspace-body scrollable">
+                    <div class="calculator-grid">
+                        <div class="calc-card">
+                            <div class="calc-card-header blue">
+                                <i class="fa-solid fa-hourglass-half"></i>
+                                <h3>حساب مدة التقادم</h3>
+                            </div>
+                            <div class="calc-card-body">
+                                <div class="form-group">
+                                    <label>نوع الدعوى</label>
+                                    <select id="calc-limitation-type" class="form-control">
+                                        <option value="15">دعوى مدنية عامة (15 سنة)</option>
+                                        <option value="10">دعوى تجارية (10 سنوات)</option>
+                                        <option value="7">دعوى جناية (7 سنوات)</option>
+                                        <option value="3">دعوى جنحة (3 سنوات)</option>
+                                        <option value="1">دعوى مخالفة (سنة واحدة)</option>
+                                        <option value="5">دعوى عمالية (5 سنوات)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>تاريخ نشأة الحق / الواقعة</label>
+                                    <input type="date" id="calc-limitation-start" class="form-control">
+                                </div>
+                                <button class="btn btn-primary" id="calc-limitation-btn" style="width:100%;">
+                                    <i class="fa-solid fa-calculator"></i> احسب التقادم
+                                </button>
+                                <div class="calc-result" id="calc-limitation-result"></div>
+                            </div>
+                        </div>
+                        <div class="calc-card">
+                            <div class="calc-card-header gold">
+                                <i class="fa-solid fa-gavel"></i>
+                                <h3>مواعيد الطعن</h3>
+                            </div>
+                            <div class="calc-card-body">
+                                <div class="form-group">
+                                    <label>نوع الطعن</label>
+                                    <select id="calc-appeal-type" class="form-control">
+                                        <option value="60">طعن بالنقض (60 يوم)</option>
+                                        <option value="40">طعن بالاستئناف (40 يوم)</option>
+                                        <option value="15">معارضة على حكم غيابي (15 يوم)</option>
+                                        <option value="30">التظلم الإداري (30 يوم)</option>
+                                        <option value="10">الاعتراض على أمر الأداء (10 أيام)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>تاريخ صدور الحكم / الإخطار</label>
+                                    <input type="date" id="calc-appeal-date" class="form-control">
+                                </div>
+                                <button class="btn btn-primary" id="calc-appeal-btn" style="width:100%;">
+                                    <i class="fa-solid fa-calculator"></i> احسب آخر موعد للطعن
+                                </button>
+                                <div class="calc-result" id="calc-appeal-result"></div>
+                            </div>
+                        </div>
+                        <div class="calc-card">
+                            <div class="calc-card-header green">
+                                <i class="fa-solid fa-user-tie"></i>
+                                <h3>مدة الإخطار في عقود العمل</h3>
+                            </div>
+                            <div class="calc-card-body">
+                                <div class="form-group">
+                                    <label>مدة الخدمة الفعلية للعامل</label>
+                                    <select id="calc-labor-tenure" class="form-control">
+                                        <option value="30">أقل من سنة (شهر إخطار)</option>
+                                        <option value="60">من سنة لأقل من 5 سنوات (شهران)</option>
+                                        <option value="90">5 سنوات فأكثر (3 أشهر)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>تاريخ تقديم الاستقالة / الإنهاء</label>
+                                    <input type="date" id="calc-labor-date" class="form-control">
+                                </div>
+                                <button class="btn btn-primary" id="calc-labor-btn" style="width:100%;">
+                                    <i class="fa-solid fa-calculator"></i> احسب آخر يوم عمل
+                                </button>
+                                <div class="calc-result" id="calc-labor-result"></div>
+                            </div>
+                        </div>
+                        <div class="calc-card">
+                            <div class="calc-card-header purple">
+                                <i class="fa-solid fa-calendar-check"></i>
+                                <h3>الفرق بين تاريخين</h3>
+                            </div>
+                            <div class="calc-card-body">
+                                <div class="form-group">
+                                    <label>تاريخ البداية</label>
+                                    <input type="date" id="calc-diff-start" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>تاريخ النهاية</label>
+                                    <input type="date" id="calc-diff-end" class="form-control">
+                                </div>
+                                <button class="btn btn-primary" id="calc-diff-btn" style="width:100%;">
+                                    <i class="fa-solid fa-calculator"></i> احسب الفرق
+                                </button>
+                                <div class="calc-result" id="calc-diff-result"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 11: Text Comparison Panel -->
+            <section id="tab-compare" class="tab-content">
+                <header class="workspace-header">
+                    <h2>مقارنة النصوص والعقود القانونية</h2>
+                </header>
+                <div class="workspace-body scrollable">
+                    <div class="split-pane">
+                        <div class="pane">
+                            <label class="font-bold">النص الأول (الأصلي)</label>
+                            <textarea id="compare-text-1" class="form-control" rows="8" placeholder="أدخل النص الأصلي أو العقد القديم هنا..." style="margin-top: 8px;"></textarea>
+                        </div>
+                        <div class="pane">
+                            <label class="font-bold">النص الثاني (المعدل)</label>
+                            <textarea id="compare-text-2" class="form-control" rows="8" placeholder="أدخل النص المعدل أو العقد الجديد هنا..." style="margin-top: 8px;"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="compare-actions" style="margin-top: 15px; display: flex; gap: 15px; align-items: center; justify-content: flex-end;">
+                        <label class="checkbox-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="compare-ai-analysis" checked>
+                            <span>تضمين التحليل القانوني بالذكاء الاصطناعي (AI)</span>
+                        </label>
+                        <button class="btn btn-primary" id="compare-submit-btn">
+                            <i class="fa-solid fa-code-compare"></i> بدء المقارنة
+                        </button>
+                    </div>
+
+                    <div class="compare-results-area" id="compare-results-area" style="display:none; margin-top: 25px;">
+                        <div class="section-title">
+                            <h3>المقارنة البصرية (الفروقات اللفظية)</h3>
+                        </div>
+                        <div class="diff-viewer-card" id="diff-visual-output"></div>
+
+                        <div class="ai-analysis-block" id="compare-ai-analysis-block" style="margin-top: 25px;">
+                            <div class="section-title">
+                                <h3>التحليل والتقييم القانوني للفروقات</h3>
+                            </div>
+                            <div class="ai-report-box" id="compare-ai-output" style="background: var(--bg-card); border: 1px solid var(--border); padding: 15px; border-radius: 8px; white-space: pre-wrap; line-height: 1.6; font-size: 0.95rem;"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 12: Legal Translation Panel -->
+            <section id="tab-translate" class="tab-content">
+                <header class="workspace-header">
+                    <h2>مترجم المصطلحات والعقود القانونية المتخصص</h2>
+                </header>
+                <div class="workspace-body scrollable">
+                    <div class="translation-controls" style="display: flex; gap: 15px; margin-bottom: 15px; align-items: center; width: 100%;">
+                        <label class="font-bold">اتجاه الترجمة:</label>
+                        <select id="translation-direction" class="form-control" style="width: 250px;">
+                            <option value="ar-to-en">العربية ⟷ الإنجليزية (Legal English)</option>
+                            <option value="en-to-ar">الإنجليزية ⟷ العربية (صياغة قانونية رسمية)</option>
+                        </select>
+                        <button class="btn btn-primary" id="translate-submit-btn" style="margin-right: auto;">
+                            <i class="fa-solid fa-language"></i> ترجمة النص
+                        </button>
+                    </div>
+
+                    <div class="split-pane">
+                        <div class="pane">
+                            <label class="font-bold" style="display: flex; align-items: center; justify-content: space-between;">
+                                <span>النص المراد ترجمته</span>
+                                <button type="button" class="btn btn-secondary btn-xs" id="translate-mic-btn" style="padding: 2px 8px; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); cursor: pointer;" title="إدخال صوتي"><i class="fa-solid fa-microphone"></i> إدخال صوتي</button>
+                            </label>
+                            <textarea id="translate-input-text" class="form-control" rows="12" placeholder="أدخل المذكرات، البنود، أو العقود القانونية هنا..." style="margin-top: 8px;"></textarea>
+                        </div>
+                        <div class="pane">
+                            <label class="font-bold" style="display: flex; align-items: center; justify-content: space-between;">
+                                <span>الترجمة القانونية المعتمدة</span>
+                                <button type="button" class="btn btn-secondary btn-xs" id="translate-speak-btn" style="padding: 2px 8px; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); cursor: pointer;" title="استماع صوتي"><i class="fa-solid fa-volume-high"></i> استماع صوتي</button>
+                            </label>
+                            <div id="translate-output-text" class="translate-output-box" style="direction: ltr; text-align: left; background: var(--bg-card); border: 1px solid var(--border); padding: 12px; border-radius: 8px; min-height: 270px; overflow-y: auto; white-space: pre-wrap; font-family: 'Courier New', Courier, monospace; margin-top: 8px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 13: Legislation Updates Panel -->
+            <section id="tab-updates" class="tab-content">
+                <header class="workspace-header">
+                    <h2>متابعة التحديثات التشريعية والجريدة الرسمية</h2>
+                    <button class="btn btn-secondary" id="check-updates-btn">
+                        <i class="fa-solid fa-arrows-rotate"></i> فحص التحديثات الجديدة (AI)
+                    </button>
+                </header>
+                <div class="workspace-body scrollable">
+                    <div class="alert-info-box" style="background: rgba(14, 165, 233, 0.1); border-right: 4px solid var(--primary); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <h4 style="margin: 0 0 5px 0; color: var(--primary);"><i class="fa-solid fa-circle-info"></i> نظام المتابعة التلقائي للوقائع والجريدة الرسمية</h4>
+                        <p style="margin:0; font-size: 0.95rem;">يقوم هذا القسم برصد أحدث القوانين، القرارات الجمهورية، والقرارات الوزارية الصادرة ومقارنتها بالبيانات الحالية وإيضاح أثرها القانوني.</p>
+                    </div>
+
+                    <!-- Updates List -->
+                    <div class="updates-timeline" id="updates-list-container" style="display: flex; flex-direction: column; gap: 15px;">
+                        <div class="loading-spinner">جاري تحميل التحديثات التشريعية...</div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <!-- Settings Overlay Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-gears"></i> إعدادات محرك الذكاء الاصطناعي</h2>
+                <button class="btn btn-icon" id="close-settings-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="library-path-input">مسار مجلد الكتب القانونية المحلي (على جهازك):</label>
+                    <input type="text" id="library-path-input" class="form-control" placeholder="C:\Users\Badawy\Documents\LegalLibrary">
+                    <small class="help-text">المجلد الذي يحتوي على جميع ملفات الـ PDF التي تريد قراءتها وفهرستها.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="provider-select">مزود الخدمة اللغوية للدردشة والتحليل:</label>
+                    <select id="provider-select" class="form-control">
+                        <option value="gemini">Google Gemini API (سريع ودقيق للغاية)</option>
+                        <option value="lmstudio">LM Studio (تشغيل محلي بالكامل/أوفلاين)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="embed-provider-select">مزود خدمة الفهرسة والـ Embedding (محرك البحث):</label>
+                    <select id="embed-provider-select" class="form-control">
+                        <option value="local">نموذج محلي Offline (مجاني بالكامل وأوفلاين 100% - مستحسن)</option>
+                        <option value="gemini">Google Gemini API (سحابي - يستهلك Quota)</option>
+                        <option value="lmstudio">LM Studio (محلي - يتطلب تشغيل الموديل محلياً)</option>
+                    </select>
+                    <small class="help-text" style="color: var(--accent-blue);">يُنصح بـ "النموذج المحلي" لتجنب نفاد حصة الاستهلاك اليومي (Quota) عند مزامنة كتب كبيرة.</small>
+                </div>
+
+                <!-- Gemini Config -->
+                <div class="config-section" id="gemini-config-section">
+                    <div class="form-group">
+                        <label for="gemini-api-key">مفتاح API الخاص بـ Gemini:</label>
+                        <div class="input-with-action">
+                            <input type="password" id="gemini-api-key" class="form-control" placeholder="AIzaSy...">
+                            <button class="btn btn-secondary" id="toggle-api-key-visibility" type="button">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                        <small class="help-text">يمكنك الحصول على مفاتيح مجانية من Google AI Studio. يمكنك إدخال مفتاح واحد أو فصّل بين عدة مفاتيح بفواصل لتفعيل التناوب التلقائي بينها عند نفاد الحصة (Quota).</small>
+                    </div>
+                    <div class="form-group" style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="ocr-enabled-checkbox" style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="ocr-enabled-checkbox" style="cursor: pointer; margin-bottom: 0; font-size: 0.95em; line-height: 1.4;">
+                            تمكين قراءة الكتب المصورة (OCR)
+                            <span style="color: #ff6b6b; font-size: 0.82em; display: block; margin-top: 2px;">(تنبيه: قد يفرض رسوم معالجة صور على المفاتيح المدفوعة)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- LM Studio Config -->
+                <div class="config-section" id="lmstudio-config-section" style="display: none;">
+                    <div class="form-group">
+                        <label for="lmstudio-url">رابط خادم LM Studio المحلي:</label>
+                        <input type="text" id="lmstudio-url" class="form-control" placeholder="http://localhost:1234/v1">
+                    </div>
+                    <div class="form-group">
+                        <label for="lmstudio-model">اسم النموذج الفعال (Model Identifier):</label>
+                        <input type="text" id="lmstudio-model" class="form-control" placeholder="qwen2.5-7b">
+                        <small class="help-text">اسم الملف أو معرف النموذج المفعل في شاشة LM Studio Server.</small>
+                    </div>
+                </div>
+                
+                <!-- Neural TTS Config -->
+                <div class="form-section-header" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border); font-weight: bold; color: var(--primary);"><i class="fa-solid fa-microphone-lines"></i> إعدادات الصوت التفاعلي الذكي</div>
+                <div class="form-group" style="margin-top: 10px;">
+                    <label for="tts-voice-select">نبرة وصوت الذكاء الاصطناعي:</label>
+                    <select id="tts-voice-select" class="form-control">
+                        <option value="auto">تلقائي (حسب لهجة كلام المستخدم)</option>
+                        <option value="ar-EG-ShakirNeural">بدوي (لهجة مصرية - ذكر - طبيعي)</option>
+                        <option value="ar-SA-HamedNeural">بدوي (عربية فصحى - ذكر - فخم)</option>
+                        <option value="ar-AE-HamdanNeural">بدوي (لهجة إماراتية - ذكر - تفاعلي)</option>
+                        <option value="ar-EG-SalmaNeural">جميلة (لهجة مصرية - أنثى - ناعم)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="tts-rate-select">سرعة ونبرة النطق التفاعلي:</label>
+                    <select id="tts-rate-select" class="form-control">
+                        <option value="+0%">سرعة طبيعية (بطيء وهادئ)</option>
+                        <option value="+10%" selected>سريع وتفاعلي (مستحسن لردود سريعة وحيوية)</option>
+                        <option value="+15%">سريع جداً (سرد سريع)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancel-settings-btn">إلغاء</button>
+                <button class="btn btn-primary" id="save-settings-btn">حفظ الإعدادات</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Case Add/Edit Modal -->
+    <div class="modal-overlay" id="case-modal" style="display:none;">
+        <div class="modal-card" style="max-width: 620px;">
+            <div class="modal-header">
+                <h2 id="case-modal-title"><i class="fa-solid fa-briefcase"></i> إضافة قضية جديدة</h2>
+                <button class="btn btn-icon" id="close-case-modal-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="case-edit-id">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label>اسم الموكل <span style="color:#f97316">*</span></label>
+                        <input type="text" id="case-client-name" class="form-control" placeholder="الاسم الثلاثي">
+                    </div>
+                    <div class="form-group">
+                        <label>رقم هاتف الموكل</label>
+                        <input type="text" id="case-client-phone" class="form-control" placeholder="01X-XXXX-XXXX">
+                    </div>
+                    <div class="form-group">
+                        <label>الرقم القومي للموكل</label>
+                        <input type="text" id="case-client-id" class="form-control" placeholder="14 رقم">
+                    </div>
+                    <div class="form-group">
+                        <label>رقم القضية <span style="color:#f97316">*</span></label>
+                        <input type="text" id="case-number" class="form-control" placeholder="مثال: 1234 لسنة 2024">
+                    </div>
+                    <div class="form-group">
+                        <label>المحكمة</label>
+                        <input type="text" id="case-court" class="form-control" placeholder="مثال: محكمة جنوب القاهرة">
+                    </div>
+                    <div class="form-group">
+                        <label>نوع القضية</label>
+                        <select id="case-type" class="form-control">
+                            <option>مدني</option>
+                            <option>جنائي</option>
+                            <option>تجاري</option>
+                            <option>عمالي</option>
+                            <option>أحوال شخصية</option>
+                            <option>إداري</option>
+                            <option>دستوري</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>الحالة</label>
+                        <select id="case-status" class="form-control">
+                            <option>نشطة</option>
+                            <option>معلّقة</option>
+                            <option>مغلقة</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>تاريخ الجلسة القادمة</label>
+                        <input type="date" id="case-next-session" class="form-control">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top:12px;">
+                    <label>ملاحظات</label>
+                    <textarea id="case-notes" class="form-control" rows="3" placeholder="ملاحظات خاصة بالقضية..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancel-case-modal-btn">إلغاء</button>
+                <button class="btn btn-primary" id="save-case-btn">حفظ القضية</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script src="app.js?v=1.0.6"></script>
+</body>
+</html>
