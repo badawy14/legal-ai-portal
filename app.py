@@ -53,19 +53,8 @@ for d in [DATA_DIR, DEFAULT_LIBRARY_DIR]:
 def get_db_connection():
     db_url = os.environ.get("DATABASE_URL")
     if db_url and psycopg2 is not None:
-        result = urlparse(db_url)
-        username = result.username
-        password = result.password
-        database = result.path[1:]
-        hostname = result.hostname
-        port = result.port
-        conn = psycopg2.connect(
-            database=database,
-            user=username,
-            password=password,
-            host=hostname,
-            port=port
-        )
+        # Use DSN directly so ?sslmode=require (Neon.tech) is respected
+        conn = psycopg2.connect(dsn=db_url)
         return conn
     else:
         db_path = os.path.join(DATA_DIR, 'users.db')
