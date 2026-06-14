@@ -31,8 +31,12 @@ venv/
 ENV/
 env/
 
-# Project Data & Caches (Crucial: Render uses a persistent disk for data)
-data/
+# Project Data & Caches
+# Only ignore temporary databases and logs inside data/
+data/users.db
+data/users/
+data/uploads/
+data/tts/
 library/
 test.mp3
 
