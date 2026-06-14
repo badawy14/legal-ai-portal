@@ -97,7 +97,7 @@ init_db()
 DEFAULT_SETTINGS = {
     "provider": "gemini",
     "embedding_provider": "local",
-    "gemini_api_key": "",
+    "gemini_api_key": os.environ.get("GEMINI_API_KEY", ""),
     "lmstudio_url": "http://localhost:1234/v1",
     "lmstudio_model": "qwen2.5-7b",
     "local_library_path": DEFAULT_LIBRARY_DIR,
@@ -458,6 +458,8 @@ def get_local_transformer():
 # API Key rotation helper
 def get_gemini_api_keys(settings):
     raw_key = settings.get("gemini_api_key", "")
+    if not raw_key:
+        raw_key = os.environ.get("GEMINI_API_KEY", "")
     if not raw_key:
         return []
     import re
