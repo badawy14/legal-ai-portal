@@ -37,6 +37,10 @@ app.secret_key = os.environ.get("SECRET_KEY", "secure-legal-key-923812")
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 ADMIN_EMAIL = "zidanelarab1@gmail.com" # Default administrator email
 
+# Detect if running on Render Free tier
+IS_RENDER = os.environ.get("RENDER", "") == "true"
+
+
 # Directories configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'data')
@@ -416,12 +420,22 @@ def save_settings(settings, user_id=None):
 # Load Vector Index (Global Shared Library)
 def load_index(user_id=None):
     if os.path.exists(INDEX_FILE):
+        # Prevent loading huge index file on Render (512MB RAM limit) to avoid OOM crash
+        if IS_RENDER:
+            try:
+                file_size_mb = os.path.getsize(INDEX_FILE) / (1024 * 1024)
+                if file_size_mb > 100:
+                    print(f"Render OOM Prevention: Skipping load of {file_size_mb:.2f}MB index file.", flush=True)
+                    return []
+            except Exception:
+                pass
         try:
             with open(INDEX_FILE, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception:
             return []
     return []
+
 
 # Save Vector Index (Global Shared Library)
 def save_index(index, user_id=None):
@@ -518,6 +532,9 @@ def cosine_similarity(v1, v2):
 # Generate embedding vector
 def get_embedding(text, settings):
     provider = settings.get("embedding_provider", "local")
+    if IS_RENDER:
+        provider = "gemini"
+
     
     if provider == "local":
         model = get_local_transformer()
@@ -561,6 +578,9 @@ def get_embeddings_batch(texts, settings):
     if not texts:
         return []
     provider = settings.get("embedding_provider", "local")
+    if IS_RENDER:
+        provider = "gemini"
+
     
     if provider == "local":
         model = get_local_transformer()
@@ -1462,7 +1482,6 @@ def chat():
         
     try:
         settings = load_settings(user_id)
-        index = load_index()
         
         relevant_chunks = []
         sources = []
@@ -1474,7 +1493,12 @@ def chat():
         if any(g in clean_query for g in greetings_list) or (len(clean_query.split()) <= 2 and not any(kw in clean_query for kw in ["قانون", "مادة", "عقد", "دستور", "أحكام", "حكم"])):
             is_conversational = True
 
-        if index and not is_conversational:
+        index = None
+        if not is_conversational:
+            index = load_index()
+
+        if index:
+
             try:
                 query_vector = get_embedding(query, settings)
                 scored_chunks = []
@@ -1508,6 +1532,9 @@ def chat():
             context_str = "\n".join(context_parts)
             
         provider = settings.get("provider", "gemini")
+        if IS_RENDER:
+            provider = "gemini"
+
         
         # Determine active voice (Egyptian Shakir by default)
         selected_voice = data.get('voice', 'auto').strip()

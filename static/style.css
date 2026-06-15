@@ -54,6 +54,30 @@ body {
                 radial-gradient(circle at 10% 85%, rgba(16, 185, 129, 0.04) 0%, transparent 45%);
 }
 
+/* Sidebar Backdrop Overlay for mobile drawer */
+.sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(3, 7, 18, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 997;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+.sidebar-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Close Button inside Sidebar (hidden on desktop) */
+.sidebar-close-btn {
+    display: none;
+}
+
 /* Sidebar Navigation Styling */
 .sidebar {
     width: 300px;
@@ -1373,34 +1397,7 @@ body {
     }
 }
 
-@media (max-width: 900px) {
-    .app-container {
-        flex-direction: column;
-    }
-    .sidebar {
-        width: 100%;
-        height: auto;
-        border-left: none;
-        border-bottom: 1px solid var(--border-color);
-    }
-    .workspace-container {
-        height: calc(100vh - 200px);
-    }
-    .sidebar-menu {
-        flex-direction: row;
-        overflow-x: auto;
-        padding: 8px;
-    }
-    .menu-item {
-        padding: 8px 12px;
-        white-space: nowrap;
-        border-right: none;
-        border-bottom: 3px solid transparent;
-    }
-    .menu-item.active {
-        border-bottom-color: var(--primary-color);
-    }
-}
+
 
 /* Progress Bar & Terminal Sync Console CSS */
 .sync-progress-details-panel {
@@ -2243,9 +2240,6 @@ body {
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
 }
 
-/* ============================================================
-   Mobile Responsive Design Media Queries (RTL Layout)
-   ============================================================ */
 @media (max-width: 768px) {
     /* Show Hamburger menu toggle button */
     .mobile-menu-toggle {
@@ -2266,12 +2260,19 @@ body {
         z-index: 999;
         cursor: pointer;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4), 0 0 10px rgba(16, 185, 129, 0.1);
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
     .mobile-menu-toggle:hover {
         background: rgba(17, 24, 39, 0.95);
         border-color: var(--primary-color);
+    }
+
+    /* Fade out the hamburger menu when drawer is open */
+    body.sidebar-open .mobile-menu-toggle {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transform: scale(0.7) !important;
     }
 
     /* Sidebar drawer on mobile */
@@ -2286,10 +2287,92 @@ body {
         transform: translateX(100%); /* Slide out to the right */
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: -8px 0 25px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
     }
     
     .sidebar.open {
         transform: translateX(0); /* Slide in from the right */
+    }
+
+    /* Style Close Button inside Sidebar */
+    .sidebar-close-btn {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border-color);
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        color: var(--text-main);
+        cursor: pointer;
+        font-size: 14px;
+        transition: all var(--transition-speed) ease;
+    }
+    .sidebar-close-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--error-color);
+        border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .sidebar-header {
+        padding: 14px 16px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+    }
+
+    .logo-area {
+        gap: 8px !important;
+    }
+    .logo-area h2 {
+        font-size: 16px !important;
+    }
+    .logo-icon {
+        font-size: 20px !important;
+    }
+    .logo-area .badge {
+        font-size: 8px !important;
+        padding: 1px 4px !important;
+    }
+
+    /* Sidebar navigation menu lists */
+    .sidebar-menu {
+        padding: 8px 4px !important;
+        gap: 4px !important;
+    }
+    .menu-item {
+        padding: 8px 12px !important;
+        font-size: 12.5px !important;
+        gap: 10px !important;
+        border-radius: 6px !important;
+    }
+    .menu-item i {
+        font-size: 15px !important;
+        width: 16px !important;
+    }
+
+    /* User Profile section on mobile */
+    .sidebar-footer {
+        padding: 10px 12px !important;
+    }
+    .user-profile-section {
+        padding-top: 8px !important;
+    }
+    #user-avatar {
+        width: 28px !important;
+        height: 28px !important;
+        margin-left: 6px !important;
+    }
+    #user-name {
+        font-size: 0.78rem !important;
+    }
+    #user-email {
+        font-size: 0.65rem !important;
+    }
+    #settings-trigger {
+        padding: 8px 12px !important;
+        font-size: 12.5px !important;
     }
 
     /* Layout grid reset on mobile */
@@ -2303,33 +2386,73 @@ body {
         padding-top: 0;
     }
 
-    /* Make workspace headers responsive and smaller */
+    /* Make workspace headers responsive, compact and horizontally aligned */
     .workspace-header {
-        padding: 12px 64px 12px 15px !important; /* Leave space on the right for the menu toggle button */
-        flex-direction: column;
-        align-items: flex-start !important;
-        gap: 6px;
-        border-bottom: 1px solid var(--border-color);
+        padding: 10px 60px 10px 12px !important; /* Leave space on the right for menu toggle button */
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        height: auto !important;
+        min-height: 56px !important;
         background: rgba(17, 24, 39, 0.4);
         backdrop-filter: blur(8px);
     }
     
     .workspace-header h2 {
-        font-size: 1.1rem !important; /* Prevent text taking up too much space */
+        font-size: 0.95rem !important; /* Prevent text taking up too much space */
         font-weight: 700;
-        white-space: normal;
-        line-height: 1.4;
+        white-space: nowrap !important;
+        text-overflow: ellipsis !important;
+        overflow: hidden !important;
+        max-width: 48% !important;
+        line-height: 1.2;
     }
     
     .header-status-info {
-        font-size: 0.75rem;
+        font-size: 0.7rem !important;
+        gap: 6px !important;
+        max-width: 48% !important;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+    
+    .provider-label-top {
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        max-width: 80px;
     }
 
-    /* Grids & Cards responsiveness */
+    /* Compact 2-column Stats Grid */
     .stats-grid {
-        grid-template-columns: 1fr !important;
-        gap: 10px !important;
-        padding: 10px !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+        padding: 8px !important;
+        margin-bottom: 16px !important;
+    }
+    
+    .stat-card {
+        padding: 10px 8px !important;
+        gap: 8px !important;
+        border-radius: 12px !important;
+    }
+    
+    .stat-icon-wrapper {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 16px !important;
+        border-radius: 8px !important;
+    }
+    
+    .stat-details h3 {
+        font-size: 16px !important;
+    }
+    
+    .stat-details p {
+        font-size: 9px !important;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
     }
     
     .workspace-body {
@@ -2341,6 +2464,14 @@ body {
         max-width: 92% !important;
         padding: 10px 12px !important;
         font-size: 0.88rem !important;
+    }
+    
+    .chat-layout-wrapper {
+        height: auto !important;
+    }
+    
+    .chat-footer-custom {
+        padding: 10px 15px !important;
     }
     
     .chat-input-area {
@@ -2380,4 +2511,11 @@ body {
         grid-template-columns: 1fr !important;
         gap: 8px !important;
     }
+    
+    /* Citations sidebar custom width */
+    .sources-sidebar-custom {
+        width: 100% !important;
+        border-right: none !important;
+    }
 }
+

@@ -80,6 +80,9 @@
     </div>
 
     <div class="app-container">
+        <!-- Sidebar Backdrop for mobile drawer -->
+        <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
         <!-- Floating Hamburger Menu for Mobile -->
         <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Open menu" style="display: none;">
             <i class="fa-solid fa-bars"></i>
@@ -93,7 +96,12 @@
                     <h2>بوابة القانون</h2>
                     <span class="badge">المتكاملة</span>
                 </div>
+                <!-- Dedicated mobile close button -->
+                <button class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close menu">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
+
 
             <!-- Main Menu Links -->
             <ul class="sidebar-menu">
