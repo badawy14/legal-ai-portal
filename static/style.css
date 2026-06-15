@@ -2242,3 +2242,142 @@ body {
     color: var(--text-main);
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
 }
+
+/* ============================================================
+   Mobile Responsive Design Media Queries (RTL Layout)
+   ============================================================ */
+@media (max-width: 768px) {
+    /* Show Hamburger menu toggle button */
+    .mobile-menu-toggle {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(17, 24, 39, 0.85);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        font-size: 18px;
+        z-index: 999;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4), 0 0 10px rgba(16, 185, 129, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .mobile-menu-toggle:hover {
+        background: rgba(17, 24, 39, 0.95);
+        border-color: var(--primary-color);
+    }
+
+    /* Sidebar drawer on mobile */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        right: 0;
+        width: 270px;
+        height: 100vh;
+        z-index: 998;
+        transform: translateX(100%); /* Slide out to the right */
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: -8px 0 25px rgba(0, 0, 0, 0.5);
+    }
+    
+    .sidebar.open {
+        transform: translateX(0); /* Slide in from the right */
+    }
+
+    /* Layout grid reset on mobile */
+    .app-container {
+        flex-direction: column;
+    }
+    
+    .workspace-container {
+        width: 100%;
+        height: 100vh;
+        padding-top: 0;
+    }
+
+    /* Make workspace headers responsive and smaller */
+    .workspace-header {
+        padding: 12px 64px 12px 15px !important; /* Leave space on the right for the menu toggle button */
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 6px;
+        border-bottom: 1px solid var(--border-color);
+        background: rgba(17, 24, 39, 0.4);
+        backdrop-filter: blur(8px);
+    }
+    
+    .workspace-header h2 {
+        font-size: 1.1rem !important; /* Prevent text taking up too much space */
+        font-weight: 700;
+        white-space: normal;
+        line-height: 1.4;
+    }
+    
+    .header-status-info {
+        font-size: 0.75rem;
+    }
+
+    /* Grids & Cards responsiveness */
+    .stats-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+        padding: 10px !important;
+    }
+    
+    .workspace-body {
+        padding: 10px !important;
+    }
+
+    /* Chat Messages adjustments */
+    .message {
+        max-width: 92% !important;
+        padding: 10px 12px !important;
+        font-size: 0.88rem !important;
+    }
+    
+    .chat-input-area {
+        padding: 10px !important;
+    }
+    
+    .input-wrapper {
+        padding: 6px 10px !important;
+    }
+    
+    #chat-input {
+        font-size: 0.88rem !important;
+        max-height: 80px !important;
+    }
+
+    /* Settings modal improvements */
+    .settings-content {
+        width: 95% !important;
+        max-height: 85vh !important;
+        padding: 15px 12px !important;
+    }
+    
+    .settings-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+
+    /* Document cards and sync panels */
+    .sync-dashboard-card {
+        padding: 12px !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+    }
+    
+    .sync-live-stats {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+    }
+}

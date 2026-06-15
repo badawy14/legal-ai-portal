@@ -96,7 +96,7 @@ init_db()
 # Default Settings
 DEFAULT_SETTINGS = {
     "provider": "gemini",
-    "embedding_provider": "local",
+    "embedding_provider": "gemini",
     "gemini_api_key": os.environ.get("GEMINI_API_KEY", ""),
     "lmstudio_url": "http://localhost:1234/v1",
     "lmstudio_model": "qwen2.5-7b",
@@ -959,6 +959,13 @@ def sync_library_thread_worker(settings):
 def index():
     return send_from_directory('static', 'index.html')
 
+# Expose public config to frontend (e.g. Google Client ID)
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    return jsonify({
+        "google_client_id": GOOGLE_CLIENT_ID
+    })
+
 # --- Auth Routes ---
 @app.route('/api/auth/google', methods=['POST'])
 def google_auth():
@@ -1281,6 +1288,35 @@ def delete_document(doc_id):
         del registry[key_to_delete]
         save_registry(registry)
     return jsonify({"status": "success", "message": "تم حذف المستند بنجاح من قاعدة البيانات."})
+
+# Secure File Upload for PDFs to the library
+@app.route('/api/admin/upload', methods=['POST'])
+@admin_required
+def upload_document():
+    if 'file' not in request.files:
+        return jsonify({"status": "error", "message": "لم يتم العثور على أي ملف في الطلب."}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"status": "error", "message": "لم يتم اختيار أي ملف."}), 400
+        
+    if not file.filename.lower().endswith('.pdf'):
+        return jsonify({"status": "error", "message": "الملفات المدعومة هي بصيغة PDF فقط."}), 400
+        
+    try:
+        # Secure the filename and save it inside the default library directory
+        from werkzeug.utils import secure_filename
+        # Fix Arabic encoding in filename if needed
+        filename = secure_filename(file.filename)
+        if not filename:
+            # Fallback to a random uuid if secure_filename completely strips everything (e.g. non-ascii names)
+            filename = f"document_{uuid.uuid4().hex}.pdf"
+            
+        dest_path = os.path.join(DEFAULT_LIBRARY_DIR, filename)
+        file.save(dest_path)
+        return jsonify({"status": "success", "message": f"تم رفع الملف '{file.filename}' بنجاح إلى المكتبة."})
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"فشل رفع الملف: {str(e)}"}), 500
 
 # Trigger background folder sync
 @app.route('/api/sync', methods=['POST'])

@@ -80,6 +80,10 @@
     </div>
 
     <div class="app-container">
+        <!-- Floating Hamburger Menu for Mobile -->
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Open menu" style="display: none;">
+            <i class="fa-solid fa-bars"></i>
+        </button>
         
         <!-- Sidebar Navigation Menu -->
         <aside class="sidebar">
@@ -444,13 +448,45 @@
                     <h2>إدارة ومزامنة الكتب القانونية المحلية</h2>
                 </header>
                 <div class="workspace-body scrollable">
+                    <!-- Upload PDF Area -->
+                    <div class="sync-dashboard-card" style="flex-direction: column; align-items: stretch; gap: 20px;">
+                        <div class="sync-card-info" style="border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 5px;">
+                            <i class="fa-solid fa-cloud-arrow-up folder-big-icon" style="color: var(--primary);"></i>
+                            <div class="folder-details-block">
+                                <h3>رفع كتب قانونية جديدة (.PDF)</h3>
+                                <p>يمكنك رفع الكتب هنا ليقوم المساعد بقراءتها وتخزينها سحابياً</p>
+                                <small>الحد الأقصى للملف الواحد: 100 ميجابايت</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Upload Input Group -->
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="file" id="admin-library-file-input" accept=".pdf" style="display: none;">
+                            <button class="btn btn-secondary" onclick="document.getElementById('admin-library-file-input').click()">
+                                <i class="fa-solid fa-file-pdf"></i> اختر كتاب قانوني (PDF)
+                            </button>
+                            <span id="selected-admin-file-name" style="color: var(--text-muted); font-size: 0.9rem;">لم يتم اختيار أي ملف</span>
+                            <button class="btn btn-primary" id="admin-upload-btn" disabled style="margin-right: auto;">
+                                <i class="fa-solid fa-arrow-up-from-bracket"></i> ابدأ الرفع
+                            </button>
+                        </div>
+                        
+                        <!-- Upload Progress Bar (hidden by default) -->
+                        <div id="admin-upload-progress-wrapper" style="display: none; margin-top: 10px;">
+                            <div class="progress-bar-wrapper" style="height: 10px;">
+                                <div class="progress-bar" id="admin-upload-progress-bar" style="width: 0%; background: var(--secondary);"></div>
+                            </div>
+                            <small id="admin-upload-progress-text" style="color: var(--text-muted); display: block; margin-top: 5px; text-align: left;">جاري الرفع: 0%</small>
+                        </div>
+                    </div>
+
                     <div class="sync-dashboard-card">
                         <div class="sync-card-info">
                             <i class="fa-solid fa-folder-closed folder-big-icon"></i>
                             <div class="folder-details-block">
-                                <h3>المجلد المحلي النشط</h3>
+                                <h3>فهرسة ومزامنة المجلد</h3>
                                 <p id="sync-library-path-label">جاري القراءة...</p>
-                                <small>يمكنك تغيير مسار المجلد من زر "إعدادات المحرك" بالأسفل</small>
+                                <small>اضغط على هذا الزر بعد الانتهاء من رفع كافة ملفاتك القانونية لتحديث الفهرس والذكاء الاصطناعي</small>
                             </div>
                         </div>
                         <button class="btn btn-primary btn-lg" id="sync-library-btn">

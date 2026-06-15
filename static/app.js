@@ -150,10 +150,23 @@ function handleSuccessfulLogin() {
     loadDocuments();
 }
 
-function initGoogleSignIn() {
+async function initGoogleSignIn() {
     if (typeof google !== 'undefined') {
+        let clientId = "789123456789-mockclientid.apps.googleusercontent.com"; // Fallback mock ID
+        try {
+            const res = await fetch('/api/config');
+            if (res.ok) {
+                const config = await res.json();
+                if (config.google_client_id && config.google_client_id.trim() !== "") {
+                    clientId = config.google_client_id;
+                }
+            }
+        } catch (err) {
+            console.log("Error fetching client config, using fallback client ID:", err);
+        }
+
         google.accounts.id.initialize({
-            client_id: "789123456789-mockclientid.apps.googleusercontent.com", // In real production this would be client ID
+            client_id: clientId,
             callback: handleCredentialResponse
         });
         google.accounts.id.renderButton(
@@ -562,6 +575,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupLegislationHandlers();
     setupRulingsHandlers();
     setupTemplatesHandlers();
+    setupMobileNavigation();
     
     // Auth listeners
     document.getElementById('dev-login-btn').addEventListener('click', handleDevLogin);
@@ -773,6 +787,17 @@ function setupRoutingHandlers() {
 }
 
 function switchTab(tabId) {
+    // Close sidebar on mobile if it is open
+    const sidebar = document.querySelector('.sidebar');
+    const menuToggle = document.getElementById('mobile-menu-toggle');
+    if (sidebar && sidebar.classList.contains('open')) {
+        sidebar.classList.remove('open');
+        if (menuToggle) {
+            const icon = menuToggle.querySelector('i');
+            if (icon) icon.className = 'fa-solid fa-bars';
+        }
+    }
+
     // Update menu items
     menuItems.forEach(item => {
         if (item.getAttribute('data-tab') === tabId) {
@@ -2576,3 +2601,29 @@ document.addEventListener('DOMContentLoaded', () => {
     initTranslate();
     initUpdates();
 });
+
+function setupMobileNavigation() {
+    const menuToggle = document.getElementById('mobile-menu-toggle');
+    const sidebar = document.querySelector('.sidebar');
+    if (menuToggle && sidebar) {
+        menuToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sidebar.classList.toggle('open');
+            const icon = menuToggle.querySelector('i');
+            if (sidebar.classList.contains('open')) {
+                icon.className = 'fa-solid fa-xmark';
+            } else {
+                icon.className = 'fa-solid fa-bars';
+            }
+        });
+        
+        // Close sidebar if user clicks outside of it on mobile
+        document.addEventListener('click', (e) => {
+            if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+                sidebar.classList.remove('open');
+                const icon = menuToggle.querySelector('i');
+                if (icon) icon.className = 'fa-solid fa-bars';
+            }
+        });
+    }
+}
