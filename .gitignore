@@ -48,3 +48,10 @@ test.mp3
 *.njsproj
 *.sln
 *.swp
+
+# Temporary backup files
+*.bak
+data/vector_index.json.bak
+scratch/
+data/vector_index.db
+data/settings.json

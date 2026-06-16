@@ -1243,12 +1243,45 @@ function setupChatHandlers() {
         }
     });
     
-    // Quick Suggestion Chips
-    document.querySelectorAll('.suggestion-chip').forEach(chip => {
-        chip.addEventListener('click', () => {
-            chatInput.value = chip.textContent;
-            handleSendMessage();
+    // Quick Suggestion Cards
+    document.querySelectorAll('.suggestion-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const prompt = card.getAttribute('data-prompt');
+            if (prompt) {
+                chatInput.value = prompt;
+                handleSendMessage();
+            }
         });
+    });
+
+    setupAutoGrowingTextarea();
+}
+
+function setupAutoGrowingTextarea() {
+    if (!chatInput) return;
+    
+    chatInput.style.height = 'auto';
+    chatInput.style.overflowY = 'hidden';
+    
+    chatInput.addEventListener('input', () => {
+        chatInput.style.height = 'auto';
+        const newHeight = Math.min(150, chatInput.scrollHeight);
+        chatInput.style.height = newHeight + 'px';
+        
+        if (chatInput.scrollHeight > 150) {
+            chatInput.style.overflowY = 'auto';
+        } else {
+            chatInput.style.overflowY = 'hidden';
+        }
+    });
+    
+    chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage();
+            chatInput.style.height = 'auto';
+            chatInput.style.overflowY = 'hidden';
+        }
     });
 }
 
@@ -1309,21 +1342,9 @@ async function handleSendMessage() {
         const botMsgId = 'msg-' + Date.now();
         
         state.currentChatSources[botMsgId] = data.sources || [];
-        appendMessage(botMsgId, 'bot', data.answer, data.sources || [], data.voice);
+        streamMessage(botMsgId, data.answer, data.sources || [], data.voice);
         if (state.autoSpeak) {
             speakText(data.answer, 'ar-EG', data.voice);
-        }
-        
-        if (activeSession) {
-            activeSession.messages.push({
-                id: botMsgId,
-                role: 'assistant',
-                content: data.answer,
-                sources: data.sources || [],
-                voice: data.voice,
-                timestamp: Date.now() / 1000
-            });
-            saveChatSessionToServer(activeChatSessionId);
         }
     } catch (error) {
         removeTypingIndicator(typingMsgId);
@@ -1331,6 +1352,122 @@ async function handleSendMessage() {
     }
     
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+window.copyCodeBlockText = function(btn) {
+    const container = btn.closest('.code-block-container');
+    if (!container) return;
+    const codeEl = container.querySelector('pre code');
+    if (!codeEl) return;
+    
+    const tempTextarea = document.createElement('textarea');
+    tempTextarea.innerHTML = codeEl.innerHTML;
+    const textToCopy = tempTextarea.value;
+    
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        const span = btn.querySelector('span');
+        const icon = btn.querySelector('i');
+        
+        if (span) span.textContent = 'تم النسخ!';
+        if (icon) icon.className = 'fa-solid fa-check';
+        btn.style.borderColor = '#10b981';
+        btn.style.color = '#10b981';
+        
+        setTimeout(() => {
+            if (span) span.textContent = 'نسخ الكود';
+            if (icon) icon.className = 'fa-solid fa-copy';
+            btn.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+            btn.style.color = '#94a3b8';
+        }, 2000);
+        
+        showToast('تم نسخ الكود للحافظة.');
+    }).catch(err => {
+        showToast('فشل نسخ الكود.', true);
+    });
+};
+
+function streamMessage(msgId, text, sources, voice) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `message bot-message`;
+    msgDiv.id = msgId;
+    
+    const avatar = `<div class="message-avatar"><i class="fa-solid fa-scale-balanced"></i></div>`;
+    
+    const bubbleDiv = document.createElement('div');
+    bubbleDiv.className = 'message-bubble';
+    
+    const textDiv = document.createElement('div');
+    textDiv.className = 'message-text-content';
+    bubbleDiv.appendChild(textDiv);
+    
+    msgDiv.appendChild(bubbleDiv);
+    msgDiv.innerHTML = avatar + msgDiv.innerHTML;
+    messagesContainer.appendChild(msgDiv);
+    
+    const words = text.split(/(\s+)/);
+    let currentWordIndex = 0;
+    let accumulatedText = "";
+    
+    const scrollContainer = () => {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    };
+    
+    const intervalId = setInterval(() => {
+        if (currentWordIndex < words.length) {
+            accumulatedText += words[currentWordIndex];
+            textDiv.innerHTML = formatMarkdownText(accumulatedText);
+            currentWordIndex++;
+            scrollContainer();
+        } else {
+            clearInterval(intervalId);
+            
+            let extraHtml = "";
+            extraHtml += `
+                <div class="message-actions" style="display:flex; justify-content:flex-end; margin-top:8px; gap:8px; border-top:1px solid rgba(255,255,255,0.03); padding-top:4px;">
+                    <button class="speak-msg-btn" data-msg-id="${msgId}" data-voice="${voice || ''}" title="استماع صوتي">
+                        <i class="fa-solid fa-volume-high"></i> <span>استماع صوتي</span>
+                    </button>
+                </div>
+            `;
+            
+            if (sources.length > 0) {
+                extraHtml += `<div class="message-sources">
+                    <span>البنود والمواد المستند إليها:</span>
+                    ${sources.map(s => `
+                        <button class="citation-badge" onclick="viewSourceDetail('${msgId}', ${s.id})" title="كتاب: ${s.doc_name} • صفحة ${s.page}">
+                            [المصدر ${s.id}]
+                        </button>
+                    `).join('')}
+                </div>`;
+            }
+            
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = extraHtml;
+            bubbleDiv.appendChild(tempDiv);
+            
+            const btn = bubbleDiv.querySelector('.speak-msg-btn');
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    speakText(text, 'ar-EG', voice || null);
+                });
+            }
+            
+            const activeSession = chatSessions.find(s => s.id === activeChatSessionId);
+            if (activeSession) {
+                activeSession.messages.push({
+                    id: msgId,
+                    role: 'assistant',
+                    content: text,
+                    sources: sources || [],
+                    voice: voice,
+                    timestamp: Date.now() / 1000
+                });
+                saveChatSessionToServer(activeChatSessionId);
+            }
+            
+            scrollContainer();
+        }
+    }, 25);
 }
 
 function appendMessage(msgId, sender, text, sources = [], voice = null) {
@@ -1409,13 +1546,98 @@ function removeTypingIndicator(indicatorId) {
 
 function formatMarkdownText(text) {
     if (!text) return "";
+    
     let escaped = text
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
+        
+    const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
+    escaped = escaped.replace(codeBlockRegex, (match, lang, code) => {
+        const displayLang = lang || 'text';
+        const cleanCode = code.trim();
+        return `<div class="code-block-container">
+            <div class="code-block-header">
+                <span>${displayLang}</span>
+                <button type="button" class="copy-code-btn" onclick="copyCodeBlockText(this)">
+                    <i class="fa-solid fa-copy"></i> <span>نسخ الكود</span>
+                </button>
+            </div>
+            <pre><code>${cleanCode}</code></pre>
+        </div>`;
+    });
+
+    escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
     escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    escaped = escaped.replace(/\n/g, '<br>');
-    return escaped;
+
+    let lines = escaped.split('\n');
+    let inList = false;
+    let listType = null;
+    let formattedLines = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+        
+        if (line.startsWith('&gt; ')) {
+            lines[i] = `<blockquote>${line.substring(5)}</blockquote>`;
+            formattedLines.push(lines[i]);
+            continue;
+        }
+        
+        if (line.startsWith('- ') || line.startsWith('* ')) {
+            if (!inList || listType !== 'ul') {
+                if (inList) formattedLines.push(`</${listType}>`);
+                formattedLines.push('<ul>');
+                inList = true;
+                listType = 'ul';
+            }
+            formattedLines.push(`<li>${line.substring(2)}</li>`);
+            continue;
+        }
+        
+        let olMatch = line.match(/^(\d+)\.\s+(.*)/);
+        if (olMatch) {
+            if (!inList || listType !== 'ol') {
+                if (inList) formattedLines.push(`</${listType}>`);
+                formattedLines.push('<ol>');
+                inList = true;
+                listType = 'ol';
+            }
+            formattedLines.push(`<li>${olMatch[2]}</li>`);
+            continue;
+        }
+        
+        if (inList && line === '') {
+            formattedLines.push(`</${listType}>`);
+            inList = false;
+            listType = null;
+        }
+        
+        if (line !== '') {
+            if (line.startsWith('### ')) {
+                formattedLines.push(`<h3 style="font-size: 15px; font-weight: 700; margin: 12px 0 6px 0; color: var(--text-main);">${line.substring(4)}</h3>`);
+            } else if (line.startsWith('## ')) {
+                formattedLines.push(`<h2 style="font-size: 17px; font-weight: 800; margin: 16px 0 8px 0; color: var(--text-main);">${line.substring(3)}</h2>`);
+            } else if (line.startsWith('# ')) {
+                formattedLines.push(`<h1 style="font-size: 20px; font-weight: 800; margin: 20px 0 10px 0; color: var(--text-main);">${line.substring(2)}</h1>`);
+            } else {
+                if (inList) {
+                    formattedLines.push(`</${listType}>`);
+                    inList = false;
+                    listType = null;
+                }
+                formattedLines.push(line + '<br>');
+            }
+        } else {
+            formattedLines.push('<br>');
+        }
+    }
+    
+    if (inList) {
+        formattedLines.push(`</${listType}>`);
+    }
+    
+    return formattedLines.join('\n').replace(/(<br>)+/g, '<br>');
 }
 
 // --- Sources Sidebar ---

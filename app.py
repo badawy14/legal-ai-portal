@@ -417,30 +417,318 @@ def save_settings(settings, user_id=None):
     with open(settings_file, 'w', encoding='utf-8') as f:
         json.dump(settings, f, ensure_ascii=False, indent=4)
 
+# --- SQLite Vector Database Integration ---
+import numpy as np
+
+GLOBAL_EMBEDDINGS = None # numpy array of shape (N, 768)
+GLOBAL_METADATA = None # list of dicts
+GLOBAL_INDEX_LOCK = threading.Lock()
+
+def serialize_embedding(embedding_list):
+    return np.array(embedding_list, dtype=np.float32).tobytes()
+
+def deserialize_embedding(blob):
+    return np.frombuffer(blob, dtype=np.float32).tolist()
+
+def migrate_json_to_sqlite_if_needed():
+    db_path = os.path.join(DATA_DIR, 'vector_index.db')
+    json_path = os.path.join(DATA_DIR, 'vector_index.json')
+    
+    if os.path.exists(db_path):
+        return
+        
+    if not os.path.exists(json_path):
+        return
+        
+    print("Migrating vector_index.json to SQLite database...", flush=True)
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS document_chunks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                doc_id TEXT,
+                doc_name TEXT,
+                page INTEGER,
+                text TEXT,
+                embedding BLOB
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_chunks_doc_id ON document_chunks(doc_id)")
+        conn.commit()
+        
+        with open(json_path, 'r', encoding='utf-8') as f:
+            index_list = json.load(f)
+            
+        print(f"Loaded {len(index_list)} chunks from JSON. Inserting into SQLite...", flush=True)
+        
+        to_insert = []
+        for chunk in index_list:
+            emb_blob = np.array(chunk["embedding"], dtype=np.float32).tobytes()
+            to_insert.append((
+                chunk["doc_id"],
+                chunk["doc_name"],
+                chunk["page"],
+                chunk["text"],
+                emb_blob
+            ))
+            
+        if to_insert:
+            for i in range(0, len(to_insert), 5000):
+                batch = to_insert[i:i+5000]
+                cur.executemany("""
+                    INSERT INTO document_chunks (doc_id, doc_name, page, text, embedding)
+                    VALUES (?, ?, ?, ?, ?)
+                """, batch)
+                conn.commit()
+                print(f"  - Migrated {i + len(batch)} / {len(to_insert)} chunks...", flush=True)
+                
+        cur.close()
+        conn.close()
+        print("Migration to SQLite completed successfully!", flush=True)
+        
+        try:
+            bak_path = json_path + ".bak"
+            if os.path.exists(bak_path):
+                os.remove(bak_path)
+            os.rename(json_path, bak_path)
+            print(f"Renamed {json_path} to {bak_path}", flush=True)
+        except Exception as rename_err:
+            print(f"Could not rename JSON file: {rename_err}", flush=True)
+            
+    except Exception as e:
+        print(f"Error migrating JSON to SQLite: {e}", flush=True)
+
+# Run migration at load time
+migrate_json_to_sqlite_if_needed()
+
+# Vector similarity search using numpy array cache
+def load_vector_db():
+    global GLOBAL_EMBEDDINGS, GLOBAL_METADATA
+    if GLOBAL_EMBEDDINGS is not None:
+        return GLOBAL_EMBEDDINGS, GLOBAL_METADATA
+        
+    with GLOBAL_INDEX_LOCK:
+        if GLOBAL_EMBEDDINGS is not None:
+            return GLOBAL_EMBEDDINGS, GLOBAL_METADATA
+            
+        db_path = os.path.join(DATA_DIR, 'vector_index.db')
+        if not os.path.exists(db_path):
+            download_url = os.environ.get("VECTOR_INDEX_URL")
+            if download_url:
+                print(f"vector_index.db not found. Downloading from {download_url}...", flush=True)
+                try:
+                    import urllib.request
+                    # Create data directory if missing
+                    os.makedirs(DATA_DIR, exist_ok=True)
+                    
+                    # Set a user-agent to bypass basic cloud blocks
+                    req = urllib.request.Request(
+                        download_url, 
+                        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                    )
+                    with urllib.request.urlopen(req) as response, open(db_path, 'wb') as out_file:
+                        shutil_copy = True
+                        # Use shutil to copy response stream to file
+                        import shutil
+                        shutil.copyfileobj(response, out_file)
+                    print("Vector index database downloaded successfully!", flush=True)
+                except Exception as dl_err:
+                    print(f"Error downloading vector_index.db: {dl_err}", flush=True)
+                    
+        if not os.path.exists(db_path):
+            GLOBAL_EMBEDDINGS = np.empty((0, 768), dtype=np.float32)
+            GLOBAL_METADATA = []
+            return GLOBAL_EMBEDDINGS, GLOBAL_METADATA
+            
+        try:
+            conn = sqlite3.connect(db_path)
+            cur = conn.cursor()
+            cur.execute("SELECT id, doc_id, doc_name, page, embedding FROM document_chunks")
+            rows = cur.fetchall()
+            cur.close()
+            conn.close()
+            
+            if not rows:
+                GLOBAL_EMBEDDINGS = np.empty((0, 768), dtype=np.float32)
+                GLOBAL_METADATA = []
+                return GLOBAL_EMBEDDINGS, GLOBAL_METADATA
+                
+            embeddings_list = []
+            metadata_list = []
+            
+            # Detect embedding dimension dynamically from the first row
+            first_emb = np.frombuffer(rows[0][4], dtype=np.float32)
+            emb_dim = len(first_emb) if len(first_emb) > 0 else 768
+            print(f"Detected Vector DB embedding dimension: {emb_dim}", flush=True)
+            
+            for row in rows:
+                row_id, doc_id, doc_name, page, emb_blob = row
+                emb = np.frombuffer(emb_blob, dtype=np.float32)
+                if len(emb) == emb_dim:
+                    embeddings_list.append(emb)
+                    metadata_list.append({
+                        "id": row_id,
+                        "doc_id": doc_id,
+                        "doc_name": doc_name,
+                        "page": page
+                    })
+            
+            if embeddings_list:
+                GLOBAL_EMBEDDINGS = np.vstack(embeddings_list)
+                GLOBAL_METADATA = metadata_list
+            else:
+                GLOBAL_EMBEDDINGS = np.empty((0, emb_dim), dtype=np.float32)
+                GLOBAL_METADATA = []
+                
+            print(f"Vector DB loaded: {GLOBAL_EMBEDDINGS.shape[0]} vectors with dimension {emb_dim}.", flush=True)
+            return GLOBAL_EMBEDDINGS, GLOBAL_METADATA
+        except Exception as e:
+            print(f"Error loading Vector DB: {e}", flush=True)
+            GLOBAL_EMBEDDINGS = np.empty((0, 768), dtype=np.float32)
+            GLOBAL_METADATA = []
+            return GLOBAL_EMBEDDINGS, GLOBAL_METADATA
+
+def search_vector_db(query_vector, top_k=4, min_similarity=0.2):
+    embeddings, metadata = load_vector_db()
+    if embeddings.shape[0] == 0:
+        return []
+        
+    qv = np.array(query_vector, dtype=np.float32)
+    qv_norm = np.linalg.norm(qv)
+    if qv_norm > 0:
+        qv = qv / qv_norm
+        
+    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    normalized_embeddings = embeddings / norms
+    
+    similarities = np.dot(normalized_embeddings, qv)
+    
+    top_indices = np.argsort(similarities)[::-1][:top_k]
+    
+    results = []
+    db_path = os.path.join(DATA_DIR, 'vector_index.db')
+    
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        
+        for idx in top_indices:
+            score = float(similarities[idx])
+            if score < min_similarity:
+                continue
+                
+            meta = metadata[idx]
+            row_id = meta["id"]
+            
+            cur.execute("SELECT text FROM document_chunks WHERE id = ?", (row_id,))
+            row = cur.fetchone()
+            if row:
+                text = row[0]
+                results.append({
+                    "doc_id": meta["doc_id"],
+                    "doc_name": meta["doc_name"],
+                    "page": meta["page"],
+                    "text": text,
+                    "score": score
+                })
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error fetching matched texts: {e}", flush=True)
+        
+    return results
+
 # Load Vector Index (Global Shared Library)
 def load_index(user_id=None):
-    if os.path.exists(INDEX_FILE):
-        # Prevent loading huge index file on Render (512MB RAM limit) to avoid OOM crash
-        if IS_RENDER:
-            try:
-                file_size_mb = os.path.getsize(INDEX_FILE) / (1024 * 1024)
-                if file_size_mb > 100:
-                    print(f"Render OOM Prevention: Skipping load of {file_size_mb:.2f}MB index file.", flush=True)
-                    return []
-            except Exception:
-                pass
-        try:
-            with open(INDEX_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            return []
-    return []
-
+    db_path = os.path.join(DATA_DIR, 'vector_index.db')
+    if not os.path.exists(db_path):
+        return []
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("SELECT doc_id, doc_name, page, text, embedding FROM document_chunks")
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        index_list = []
+        for row in rows:
+            doc_id, doc_name, page, text, emb_blob = row
+            embedding = np.frombuffer(emb_blob, dtype=np.float32).tolist()
+            index_list.append({
+                "doc_id": doc_id,
+                "doc_name": doc_name,
+                "page": page,
+                "text": text,
+                "embedding": embedding
+            })
+        return index_list
+    except Exception as e:
+        print(f"Error in load_index from SQLite: {e}", flush=True)
+        return []
 
 # Save Vector Index (Global Shared Library)
-def save_index(index, user_id=None):
-    with open(INDEX_FILE, 'w', encoding='utf-8') as f:
-        json.dump(index, f, ensure_ascii=False, indent=4)
+def save_index(index_list, user_id=None):
+    db_path = os.path.join(DATA_DIR, 'vector_index.db')
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS document_chunks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                doc_id TEXT,
+                doc_name TEXT,
+                page INTEGER,
+                text TEXT,
+                embedding BLOB
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_chunks_doc_id ON document_chunks(doc_id)")
+        conn.commit()
+        
+        doc_ids_in_list = list(set(chunk["doc_id"] for chunk in index_list))
+        
+        if doc_ids_in_list:
+            placeholders = ",".join("?" for _ in doc_ids_in_list)
+            cur.execute(f"DELETE FROM document_chunks WHERE doc_id NOT IN ({placeholders})", doc_ids_in_list)
+        else:
+            cur.execute("DELETE FROM document_chunks")
+            
+        cur.execute("SELECT DISTINCT doc_id FROM document_chunks")
+        existing_doc_ids = set(row[0] for row in cur.fetchall())
+        
+        to_insert = []
+        for chunk in index_list:
+            doc_id = chunk["doc_id"]
+            if doc_id not in existing_doc_ids:
+                emb_blob = serialize_embedding(chunk["embedding"])
+                to_insert.append((
+                    doc_id,
+                    chunk["doc_name"],
+                    chunk["page"],
+                    chunk["text"],
+                    emb_blob
+                ))
+                
+        if to_insert:
+            cur.executemany("""
+                INSERT INTO document_chunks (doc_id, doc_name, page, text, embedding)
+                VALUES (?, ?, ?, ?, ?)
+            """, to_insert)
+            
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        global GLOBAL_EMBEDDINGS, GLOBAL_METADATA
+        GLOBAL_EMBEDDINGS = None
+        GLOBAL_METADATA = None
+        
+        print(f"Successfully saved index to SQLite. Deleted unused docs. Inserted {len(to_insert)} new chunks.", flush=True)
+    except Exception as e:
+        print(f"Error saving index to SQLite: {e}", flush=True)
 
 # Load/Save Documents Registry (Global Shared Library)
 def load_registry(user_id=None):
@@ -1493,24 +1781,12 @@ def chat():
         if any(g in clean_query for g in greetings_list) or (len(clean_query.split()) <= 2 and not any(kw in clean_query for kw in ["قانون", "مادة", "عقد", "دستور", "أحكام", "حكم"])):
             is_conversational = True
 
-        index = None
         if not is_conversational:
-            index = load_index()
-
-        if index:
-
             try:
                 query_vector = get_embedding(query, settings)
-                scored_chunks = []
-                for item in index:
-                    similarity = cosine_similarity(query_vector, item['embedding'])
-                    scored_chunks.append((similarity, item))
-                    
-                scored_chunks.sort(key=lambda x: x[0], reverse=True)
-                top_chunks = scored_chunks[:4]
-                relevant_chunks = [chunk for sim, chunk in top_chunks if sim > 0.2]
+                relevant_chunks = search_vector_db(query_vector, top_k=4, min_similarity=0.2)
             except Exception as embed_err:
-                print(f"Error calculating embeddings or similarities: {embed_err}")
+                print(f"Error searching vector database: {embed_err}", flush=True)
                 
         context_parts = []
         for idx, chunk in enumerate(relevant_chunks):
@@ -1524,13 +1800,16 @@ def chat():
                 "text": chunk['text']
             })
             
-        if not index:
+        embeddings, metadata = load_vector_db()
+        is_db_empty = (embeddings.shape[0] == 0)
+        
+        if is_db_empty:
             context_str = "تنبيه: قاعدة البيانات والمكتبة المحلية فارغة حالياً (لم تكتمل المزامنة بعد)."
         elif not relevant_chunks:
             context_str = "تنبيه: لم يتم العثور على فقرات مطابقة مباشرة من كتب المكتبة المحلية لهذا السؤال."
         else:
             context_str = "\n".join(context_parts)
-            
+
         provider = settings.get("provider", "gemini")
         if IS_RENDER:
             provider = "gemini"

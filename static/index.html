@@ -324,12 +324,28 @@
                             <div class="message system-message">
                                 <div class="message-content">
                                     <div class="welcome-box">
-                                        <i class="fa-solid fa-brain welcome-icon"></i>
-                                        <h1>بدوي المساعد الذكي تحت تصرفك</h1>
-                                        <p>يسأل الذكاء الاصطناعي ويجيب بدقة بناءً على مكتبة الكتب والأسطوانات القانونية المزامنة في المجلد المختار على جهازك. سيقوم بربط الإجابة بالمراجع والصفحات.</p>
+                                        <div class="welcome-icon-wrapper">
+                                            <i class="fa-solid fa-wand-magic-sparkles welcome-icon"></i>
+                                        </div>
+                                        <h1>أهلاً بك، أنا بدوي المساعد القانوني الذكي</h1>
+                                        <p class="welcome-desc">كيف يمكنني مساعدتك في استشارتك القانونية اليوم؟ اسألني عن القوانين، أحكام النقض، أو اطلب صياغة العقود.</p>
                                         <div class="suggestions-grid">
-                                            <button class="suggestion-chip">ما هو الشرط الجزائي وقيمته في القانون المدني؟</button>
-                                            <button class="suggestion-chip">ما هي حالات فصل العامل طبقاً لقانون العمل؟</button>
+                                            <div class="suggestion-card" data-prompt="ما هو الشرط الجزائي وقيمته في القانون المدني؟">
+                                                <div class="suggestion-card-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+                                                <div class="suggestion-card-text">الشرط الجزائي في القانون المدني</div>
+                                            </div>
+                                            <div class="suggestion-card" data-prompt="ما هي حالات فصل العامل طبقاً لقانون العمل؟">
+                                                <div class="suggestion-card-icon"><i class="fa-solid fa-briefcase"></i></div>
+                                                <div class="suggestion-card-text">حالات فصل العامل في قانون العمل</div>
+                                            </div>
+                                            <div class="suggestion-card" data-prompt="صياغة عقد بيع شقة سكنية ابتدائي">
+                                                <div class="suggestion-card-icon"><i class="fa-solid fa-file-signature"></i></div>
+                                                <div class="suggestion-card-text">صياغة عقد بيع شقة ابتدائي</div>
+                                            </div>
+                                            <div class="suggestion-card" data-prompt="كيف يتم إثبات جريمة النصب في القانون الجنائي؟">
+                                                <div class="suggestion-card-icon"><i class="fa-solid fa-gavel"></i></div>
+                                                <div class="suggestion-card-text">إثبات جريمة النصب الجنائية</div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -337,10 +353,18 @@
                         </div>
                         
                         <footer class="chat-footer-custom">
-                            <form id="chat-form" class="chat-form" style="display: flex; gap: 8px;">
-                                <button type="button" class="btn btn-secondary" id="chat-mic-btn" title="إدخال صوتي" style="padding: 0 16px; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-microphone"></i></button>
-                                <input type="text" id="chat-input" placeholder="اكتب استشارتك القانونية هنا بالتفصيل..." autocomplete="off" style="flex-grow: 1;">
-                                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i></button>
+                            <form id="chat-form" class="chat-form-wrapper">
+                                <div class="chat-input-container" id="chat-input-wrapper">
+                                    <textarea id="chat-input" placeholder="اكتب استشارتك القانونية هنا بالتفصيل... (Enter للإرسال، Shift+Enter لسطر جديد)" rows="1"></textarea>
+                                    <div class="chat-input-actions">
+                                        <button type="button" class="action-btn" id="chat-mic-btn" title="إدخال صوتي">
+                                            <i class="fa-solid fa-microphone"></i>
+                                        </button>
+                                        <button type="submit" class="send-btn" id="chat-send-btn" title="إرسال">
+                                            <i class="fa-solid fa-paper-plane"></i>
+                                        </button>
+                                    </div>
+                                </div>
                             </form>
                         </footer>
                     </main>
