@@ -547,28 +547,31 @@ def download_large_file(url, dest_path):
         
         response = session.get(drive_url, params=params, headers=headers, stream=True)
         
-        # Check for confirmation token
-        confirm_token = None
-        for key, value in response.cookies.items():
-            if key.startswith('download_warning'):
-                confirm_token = value
-                break
+        # Check if Google Drive serves a confirmation/warning page (virus warning or similar)
+        content_type = response.headers.get('Content-Type', '')
+        if 'text/html' in content_type:
+            try:
+                # Read the warning page
+                html_text = response.text
                 
-        if not confirm_token:
-            content_type = response.headers.get('Content-Type', '')
-            if 'text/html' in content_type:
-                try:
-                    html_text = response.text
-                    match = re.search(r'confirm=([a-zA-Z0-9_-]+)', html_text)
-                    if match:
-                        confirm_token = match.group(1)
-                except Exception:
-                    pass
-                    
-        if confirm_token:
-            print(f"Google Drive large file download warning detected. Using confirmation token: {confirm_token}", flush=True)
-            params['confirm'] = confirm_token
-            response = session.get(drive_url, params=params, headers=headers, stream=True)
+                # Extract all hidden inputs (like confirm, uuid, id, export) from the page form
+                inputs = {}
+                for tag in re.findall(r'<input\s+[^>]*type="hidden"[^>]*>', html_text):
+                    name_match = re.search(r'name=["\']([^"\']+)["\']', tag)
+                    value_match = re.search(r'value=["\']([^"\']+)["\']', tag)
+                    if name_match and value_match:
+                        inputs[name_match.group(1)] = value_match.group(1)
+                        
+                if inputs:
+                    form_action_match = re.search(r'<form\s+[^>]*action=["\']([^"\']+)["\']', html_text)
+                    action_url = form_action_match.group(1) if form_action_match else 'https://drive.usercontent.google.com/download'
+                    if action_url.startswith('/'):
+                        action_url = 'https://drive.google.com' + action_url
+                        
+                    print(f"Google Drive warning page found. Submitting form with parameters: {inputs}", flush=True)
+                    response = session.get(action_url, params=inputs, headers=headers, stream=True)
+            except Exception as parse_err:
+                print(f"Error parsing Google Drive warning form: {parse_err}", flush=True)
     else:
         print(f"Downloading from standard URL: {url}", flush=True)
         response = session.get(url, headers=headers, stream=True)
