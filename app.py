@@ -507,6 +507,9 @@ def download_large_file(url, dest_path):
     import re
     import os
     
+    # Clean URL of quotes and spaces
+    url = url.strip().strip('\'"')
+    
     # Auto-rewrite Dropbox links
     if "dropbox.com" in url:
         if "dl=0" in url:
@@ -582,13 +585,17 @@ def download_large_file(url, dest_path):
         size_bytes = os.path.getsize(dest_path)
         print(f"Downloaded file size: {size_bytes} bytes ({round(size_bytes / (1024*1024), 2)} MB)", flush=True)
         if size_bytes < 10 * 1024 * 1024:  # Less than 10 MB
+            preview = ""
             try:
                 with open(dest_path, 'r', encoding='utf-8', errors='ignore') as f:
                     preview = f.read(1000)
-                print(f"Warning: Downloaded file is very small. Content preview:\n{preview}", flush=True)
             except Exception:
                 pass
-            raise Exception("Downloaded file is too small. It might be an HTML error page or access is restricted.")
+            raise Exception(
+                f"Downloaded file is too small ({size_bytes} bytes). "
+                f"URL used: '{url}'. Extracted Drive ID: '{drive_id}'. "
+                f"Content preview: {preview[:400]}"
+            )
 
 # Vector similarity search using numpy array cache
 def load_vector_db():
