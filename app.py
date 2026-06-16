@@ -43,7 +43,14 @@ IS_RENDER = os.environ.get("RENDER", "") == "true"
 
 # Directories configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, 'data')
+
+# Detect if running on Hugging Face Spaces with a mounted storage bucket
+if os.environ.get("SPACE_ID") and os.path.exists("/data"):
+    DATA_DIR = "/data"
+    print("Running on Hugging Face Spaces. Using persistent storage bucket at /data.", flush=True)
+else:
+    DATA_DIR = os.path.join(BASE_DIR, 'data')
+
 DEFAULT_LIBRARY_DIR = os.path.join(BASE_DIR, 'library')
 INDEX_FILE = os.path.join(DATA_DIR, 'vector_index.json')
 REGISTRY_FILE = os.path.join(DATA_DIR, 'documents_registry.json')
