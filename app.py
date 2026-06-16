@@ -681,55 +681,82 @@ def load_vector_db():
             return GLOBAL_EMBEDDINGS, GLOBAL_METADATA
 
 def search_vector_db(query_vector, top_k=4, min_similarity=0.2):
-    embeddings, metadata = load_vector_db()
-    if embeddings.shape[0] == 0:
-        return []
-        
     qv = np.array(query_vector, dtype=np.float32)
     qv_norm = np.linalg.norm(qv)
     if qv_norm > 0:
         qv = qv / qv_norm
         
-    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-    norms[norms == 0] = 1.0
-    normalized_embeddings = embeddings / norms
-    
-    similarities = np.dot(normalized_embeddings, qv)
-    
-    top_indices = np.argsort(similarities)[::-1][:top_k]
-    
-    results = []
     db_path = os.path.join(DATA_DIR, 'vector_index.db')
+    if not os.path.exists(db_path):
+        return []
+        
+    best_results = []
     
     try:
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
         
-        for idx in top_indices:
-            score = float(similarities[idx])
-            if score < min_similarity:
+        # Check if table exists
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='document_chunks'")
+        if not cur.fetchone():
+            cur.close()
+            conn.close()
+            return []
+            
+        cur.execute("SELECT id, doc_id, doc_name, page, embedding FROM document_chunks")
+        
+        batch_size = 5000
+        while True:
+            rows = cur.fetchmany(batch_size)
+            if not rows:
+                break
+                
+            embeddings_list = []
+            metadata_list = []
+            for row in rows:
+                row_id, doc_id, doc_name, page, emb_blob = row
+                emb = np.frombuffer(emb_blob, dtype=np.float32)
+                embeddings_list.append(emb)
+                metadata_list.append((row_id, doc_id, doc_name, page))
+                
+            if not embeddings_list:
                 continue
                 
-            meta = metadata[idx]
-            row_id = meta["id"]
+            batch_embeddings = np.vstack(embeddings_list)
             
+            norms = np.linalg.norm(batch_embeddings, axis=1, keepdims=True)
+            norms[norms == 0] = 1.0
+            normalized_embeddings = batch_embeddings / norms
+            similarities = np.dot(normalized_embeddings, qv)
+            
+            for i, score in enumerate(similarities):
+                score = float(score)
+                if score >= min_similarity:
+                    row_id, doc_id, doc_name, page = metadata_list[i]
+                    best_results.append((score, row_id, doc_id, doc_name, page))
+                    
+        best_results.sort(key=lambda x: x[0], reverse=True)
+        top_results = best_results[:top_k]
+        
+        final_results = []
+        for score, row_id, doc_id, doc_name, page in top_results:
             cur.execute("SELECT text FROM document_chunks WHERE id = ?", (row_id,))
             row = cur.fetchone()
             if row:
-                text = row[0]
-                results.append({
-                    "doc_id": meta["doc_id"],
-                    "doc_name": meta["doc_name"],
-                    "page": meta["page"],
-                    "text": text,
+                final_results.append({
+                    "doc_id": doc_id,
+                    "doc_name": doc_name,
+                    "page": page,
+                    "text": row[0],
                     "score": score
                 })
+                
         cur.close()
         conn.close()
+        return final_results
     except Exception as e:
-        print(f"Error fetching matched texts: {e}", flush=True)
-        
-    return results
+        print(f"Error searching vector database: {e}", flush=True)
+        return []
 
 # Load Vector Index (Global Shared Library)
 def load_index(user_id=None):
@@ -1892,8 +1919,20 @@ def chat():
                 "text": chunk['text']
             })
             
-        embeddings, metadata = load_vector_db()
-        is_db_empty = (embeddings.shape[0] == 0)
+        is_db_empty = True
+        db_path = os.path.join(DATA_DIR, 'vector_index.db')
+        if os.path.exists(db_path):
+            try:
+                conn = sqlite3.connect(db_path)
+                cur = conn.cursor()
+                cur.execute("SELECT 1 FROM document_chunks LIMIT 1")
+                row = cur.fetchone()
+                if row:
+                    is_db_empty = False
+                cur.close()
+                conn.close()
+            except Exception as db_err:
+                print(f"Error checking if db is empty: {db_err}", flush=True)
         
         if is_db_empty:
             context_str = "تنبيه: قاعدة البيانات والمكتبة المحلية فارغة حالياً (لم تكتمل المزامنة بعد)."
@@ -2702,11 +2741,29 @@ def text_to_speech():
         return jsonify({"error": f"حدث خطأ أثناء تحويل النص إلى صوت: {str(e)}"}), 500
 
 
-# Preload the Vector DB and trigger download on startup in the background
+# Trigger download on startup in the background (OOM-safe)
+def download_db_in_background():
+    db_path = os.path.join(DATA_DIR, 'vector_index.db')
+    if not os.path.exists(db_path):
+        download_url = os.environ.get("VECTOR_INDEX_URL")
+        if download_url:
+            print(f"vector_index.db not found. Downloading from {download_url}...", flush=True)
+            try:
+                download_large_file(download_url, db_path)
+                print("Vector index database downloaded successfully!", flush=True)
+            except Exception as dl_err:
+                print(f"Error downloading vector_index.db: {dl_err}", flush=True)
+                if os.path.exists(db_path):
+                    try:
+                        os.remove(db_path)
+                        print("Removed corrupted/incomplete database file.", flush=True)
+                    except Exception:
+                        pass
+
 try:
-    threading.Thread(target=load_vector_db, daemon=True).start()
+    threading.Thread(target=download_db_in_background, daemon=True).start()
 except Exception as t_err:
-    print(f"Failed to start Vector DB preloading thread: {t_err}")
+    print(f"Failed to start Vector DB downloading thread: {t_err}")
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
