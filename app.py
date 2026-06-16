@@ -502,6 +502,94 @@ def migrate_json_to_sqlite_if_needed():
 # Run migration at load time
 migrate_json_to_sqlite_if_needed()
 
+def download_large_file(url, dest_path):
+    import requests
+    import re
+    import os
+    
+    # Auto-rewrite Dropbox links
+    if "dropbox.com" in url:
+        if "dl=0" in url:
+            url = url.replace("dl=0", "dl=1")
+            print(f"Rewrote Dropbox link to direct download: {url}", flush=True)
+        elif "dl=1" not in url and "raw=1" not in url:
+            if "?" in url:
+                url += "&dl=1"
+            else:
+                url += "?dl=1"
+            print(f"Appended direct download parameter to Dropbox link: {url}", flush=True)
+
+    # Try to detect Google Drive
+    def get_google_drive_id(link):
+        match = re.search(r'/file/d/([a-zA-Z0-9_-]+)', link)
+        if match:
+            return match.group(1)
+        match = re.search(r'[?&]id=([a-zA-Z0-9_-]+)', link)
+        if match:
+            return match.group(1)
+        return None
+
+    drive_id = get_google_drive_id(url) if ("drive.google.com" in url or "docs.google.com" in url) else None
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    
+    session = requests.Session()
+    
+    if drive_id:
+        print(f"Detected Google Drive URL. Extracted File ID: {drive_id}", flush=True)
+        drive_url = "https://docs.google.com/uc?export=download"
+        params = {'id': drive_id}
+        
+        response = session.get(drive_url, params=params, headers=headers, stream=True)
+        
+        # Check for confirmation token
+        confirm_token = None
+        for key, value in response.cookies.items():
+            if key.startswith('download_warning'):
+                confirm_token = value
+                break
+                
+        if not confirm_token:
+            content_type = response.headers.get('Content-Type', '')
+            if 'text/html' in content_type:
+                try:
+                    html_text = response.text
+                    match = re.search(r'confirm=([a-zA-Z0-9_-]+)', html_text)
+                    if match:
+                        confirm_token = match.group(1)
+                except Exception:
+                    pass
+                    
+        if confirm_token:
+            print(f"Google Drive large file download warning detected. Using confirmation token: {confirm_token}", flush=True)
+            params['confirm'] = confirm_token
+            response = session.get(drive_url, params=params, headers=headers, stream=True)
+    else:
+        print(f"Downloading from standard URL: {url}", flush=True)
+        response = session.get(url, headers=headers, stream=True)
+        
+    response.raise_for_status()
+    
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+    with open(dest_path, 'wb') as f:
+        for chunk in response.iter_content(chunk_size=1024*1024):
+            if chunk:
+                f.write(chunk)
+                
+    if os.path.exists(dest_path):
+        size_bytes = os.path.getsize(dest_path)
+        print(f"Downloaded file size: {size_bytes} bytes ({round(size_bytes / (1024*1024), 2)} MB)", flush=True)
+        if size_bytes < 10 * 1024 * 1024:  # Less than 10 MB
+            try:
+                with open(dest_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    preview = f.read(1000)
+                print(f"Warning: Downloaded file is very small. Content preview:\n{preview}", flush=True)
+            except Exception:
+                pass
+            raise Exception("Downloaded file is too small. It might be an HTML error page or access is restricted.")
+
 # Vector similarity search using numpy array cache
 def load_vector_db():
     global GLOBAL_EMBEDDINGS, GLOBAL_METADATA
@@ -518,23 +606,16 @@ def load_vector_db():
             if download_url:
                 print(f"vector_index.db not found. Downloading from {download_url}...", flush=True)
                 try:
-                    import urllib.request
-                    # Create data directory if missing
-                    os.makedirs(DATA_DIR, exist_ok=True)
-                    
-                    # Set a user-agent to bypass basic cloud blocks
-                    req = urllib.request.Request(
-                        download_url, 
-                        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-                    )
-                    with urllib.request.urlopen(req) as response, open(db_path, 'wb') as out_file:
-                        shutil_copy = True
-                        # Use shutil to copy response stream to file
-                        import shutil
-                        shutil.copyfileobj(response, out_file)
+                    download_large_file(download_url, db_path)
                     print("Vector index database downloaded successfully!", flush=True)
                 except Exception as dl_err:
                     print(f"Error downloading vector_index.db: {dl_err}", flush=True)
+                    if os.path.exists(db_path):
+                        try:
+                            os.remove(db_path)
+                            print("Removed corrupted/incomplete database file.", flush=True)
+                        except Exception as rm_err:
+                            print(f"Could not remove corrupted database file: {rm_err}", flush=True)
                     
         if not os.path.exists(db_path):
             GLOBAL_EMBEDDINGS = np.empty((0, 768), dtype=np.float32)
