@@ -2611,5 +2611,11 @@ def text_to_speech():
         return jsonify({"error": f"حدث خطأ أثناء تحويل النص إلى صوت: {str(e)}"}), 500
 
 
+# Preload the Vector DB and trigger download on startup in the background
+try:
+    threading.Thread(target=load_vector_db, daemon=True).start()
+except Exception as t_err:
+    print(f"Failed to start Vector DB preloading thread: {t_err}")
+
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
