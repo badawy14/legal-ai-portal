@@ -1391,7 +1391,10 @@ function streamMessage(msgId, text, sources, voice) {
     msgDiv.className = `message bot-message`;
     msgDiv.id = msgId;
     
-    const avatar = `<div class="message-avatar"><i class="fa-solid fa-scale-balanced"></i></div>`;
+    const avatarDiv = document.createElement('div');
+    avatarDiv.className = 'message-avatar';
+    avatarDiv.innerHTML = '<i class="fa-solid fa-scale-balanced"></i>';
+    msgDiv.appendChild(avatarDiv);
     
     const bubbleDiv = document.createElement('div');
     bubbleDiv.className = 'message-bubble';
@@ -1401,7 +1404,6 @@ function streamMessage(msgId, text, sources, voice) {
     bubbleDiv.appendChild(textDiv);
     
     msgDiv.appendChild(bubbleDiv);
-    msgDiv.innerHTML = avatar + msgDiv.innerHTML;
     messagesContainer.appendChild(msgDiv);
     
     const words = text.split(/(\s+)/);

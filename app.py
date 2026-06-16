@@ -1525,8 +1525,9 @@ def get_admin_stats():
     total_chunks = sum(info.get("chunks_count", 0) for info in registry.values())
     
     index_size_mb = 0.0
-    if os.path.exists(INDEX_FILE):
-        index_size_mb = round(os.path.getsize(INDEX_FILE) / (1024 * 1024), 2)
+    db_path = os.path.join(DATA_DIR, 'vector_index.db')
+    if os.path.exists(db_path):
+        index_size_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
         
     return jsonify({
         "total_users": total_users,
