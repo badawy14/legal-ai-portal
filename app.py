@@ -87,6 +87,19 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS api_usage (
+                id SERIAL PRIMARY KEY,
+                user_id VARCHAR(255) NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                provider VARCHAR(50) NOT NULL,
+                model VARCHAR(100) NOT NULL,
+                prompt_tokens INTEGER DEFAULT 0,
+                completion_tokens INTEGER DEFAULT 0,
+                cost REAL DEFAULT 0.0,
+                call_type VARCHAR(50) NOT NULL
+            );
+        """)
     else:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -95,6 +108,19 @@ def init_db():
                 email TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 created_at TEXT NOT NULL
+            );
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS api_usage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                model TEXT NOT NULL,
+                prompt_tokens INTEGER DEFAULT 0,
+                completion_tokens INTEGER DEFAULT 0,
+                cost REAL DEFAULT 0.0,
+                call_type TEXT NOT NULL
             );
         """)
     conn.commit()
@@ -109,6 +135,8 @@ DEFAULT_SETTINGS = {
     "provider": "gemini",
     "embedding_provider": "gemini",
     "gemini_api_key": os.environ.get("GEMINI_API_KEY", ""),
+    "openrouter_api_key": os.environ.get("OPENROUTER_API_KEY", ""),
+    "openrouter_model": "google/gemini-2.5-flash",
     "lmstudio_url": "http://localhost:1234/v1",
     "lmstudio_model": "qwen2.5-7b",
     "local_library_path": DEFAULT_LIBRARY_DIR,
@@ -868,6 +896,150 @@ def load_registry(user_id=None):
 def save_registry(registry, user_id=None):
     with open(REGISTRY_FILE, 'w', encoding='utf-8') as f:
         json.dump(registry, f, ensure_ascii=False, indent=4)
+
+def log_api_usage(user_id, provider, model, prompt_tokens, completion_tokens, cost, call_type):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    db_url = os.environ.get("DATABASE_URL")
+    
+    if cost == 0.0 and provider == "openrouter":
+        if "gemini-2.5-flash" in model:
+            cost = (prompt_tokens * 0.075 / 1000000) + (completion_tokens * 0.3 / 1000000)
+        else:
+            cost = (prompt_tokens + completion_tokens) * 0.5 / 1000000
+            
+    if db_url and psycopg2 is not None:
+        cur.execute("""
+            INSERT INTO api_usage (user_id, provider, model, prompt_tokens, completion_tokens, cost, call_type)
+            VALUES (%s, %s, %s, %s, %s, %s, %s);
+        """, (user_id, provider, model, prompt_tokens, completion_tokens, cost, call_type))
+    else:
+        import datetime
+        timestamp_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cur.execute("""
+            INSERT INTO api_usage (user_id, timestamp, provider, model, prompt_tokens, completion_tokens, cost, call_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+        """, (user_id, timestamp_str, provider, model, prompt_tokens, completion_tokens, cost, call_type))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def generate_llm_response(prompt, system_instruction=None, settings=None, user_id=None, call_type="chat"):
+    if not settings:
+        settings = load_settings(user_id) if user_id else DEFAULT_SETTINGS
+    
+    provider = settings.get("provider", "gemini")
+    
+    # Auto-detect OpenRouter if provider is gemini but the key is OpenRouter
+    api_key = settings.get("gemini_api_key", "").strip()
+    if provider == "gemini" and api_key.startswith("sk-or-"):
+        provider = "openrouter"
+        settings["openrouter_api_key"] = api_key
+        if "openrouter_model" not in settings:
+            settings["openrouter_model"] = "google/gemini-2.5-flash"
+            
+    prompt_tokens = 0
+    completion_tokens = 0
+    cost = 0.0
+    model_name = ""
+    answer = ""
+    
+    if provider == "gemini":
+        model_name = "gemini-2.5-flash"
+        def call_gen():
+            nonlocal prompt_tokens, completion_tokens
+            model = genai.GenerativeModel(
+                model_name=model_name,
+                system_instruction=system_instruction
+            )
+            response = model.generate_content(prompt)
+            try:
+                prompt_tokens = response.usage_metadata.prompt_token_count
+                completion_tokens = response.usage_metadata.candidates_token_count
+            except Exception:
+                pass
+            return response.text
+        
+        key = settings.get("gemini_api_key", "").strip()
+        if key:
+            genai.configure(api_key=key)
+        answer = execute_with_gemini_retry(settings, call_gen)
+        
+    elif provider == "openrouter":
+        model_name = settings.get("openrouter_model", "google/gemini-2.5-flash")
+        key = settings.get("openrouter_api_key", "").strip()
+        if not key:
+            key = settings.get("gemini_api_key", "").strip()
+            
+        headers = {
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": model_name,
+            "messages": []
+        }
+        if system_instruction:
+            payload["messages"].append({"role": "system", "content": system_instruction})
+        payload["messages"].append({"role": "user", "content": prompt})
+        
+        try:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=60
+            )
+            response.raise_for_status()
+            res_json = response.json()
+            answer = res_json['choices'][0]['message']['content']
+            try:
+                usage = res_json.get('usage', {})
+                prompt_tokens = usage.get('prompt_tokens', 0)
+                completion_tokens = usage.get('completion_tokens', 0)
+            except Exception:
+                pass
+        except Exception as e:
+            raise ValueError(f"فشل الاتصال بـ OpenRouter: {e}")
+            
+    elif provider == "lmstudio":
+        model_name = settings.get("lmstudio_model", "qwen2.5-7b")
+        url = settings.get("lmstudio_url", "http://localhost:1234/v1").rstrip('/')
+        payload = {
+            "model": model_name,
+            "messages": [],
+            "temperature": 0.3
+        }
+        if system_instruction:
+            payload["messages"].append({"role": "system", "content": system_instruction})
+        payload["messages"].append({"role": "user", "content": prompt})
+        
+        try:
+            response = requests.post(
+                f"{url}/chat/completions",
+                headers={"Content-Type": "application/json"},
+                json=payload,
+                timeout=60
+            )
+            response.raise_for_status()
+            res_json = response.json()
+            answer = res_json['choices'][0]['message']['content']
+            try:
+                usage = res_json.get('usage', {})
+                prompt_tokens = usage.get('prompt_tokens', 0)
+                completion_tokens = usage.get('completion_tokens', 0)
+            except Exception:
+                pass
+        except Exception as e:
+            raise ValueError(f"فشل الاتصال بـ LM Studio: {e}")
+            
+    if user_id:
+        try:
+            log_api_usage(user_id, provider, model_name, prompt_tokens, completion_tokens, cost, call_type)
+        except Exception as db_err:
+            print(f"Error logging API usage: {db_err}", flush=True)
+            
+    return answer
 
 _local_transformer = None
 _local_transformer_lock = threading.Lock()
@@ -1661,6 +1833,88 @@ def get_admin_stats():
         "index_size_mb": index_size_mb
     })
 
+@app.route('/api/admin/usage', methods=['GET'])
+@admin_required
+def get_api_usage():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    db_url = os.environ.get("DATABASE_URL")
+    
+    # 1. Total tokens and calls per provider
+    cur.execute("""
+        SELECT provider, SUM(prompt_tokens + completion_tokens) as total_tokens, COUNT(*) as total_calls
+        FROM api_usage
+        GROUP BY provider;
+    """)
+    provider_rows = cur.fetchall()
+    providers = {}
+    for r in provider_rows:
+        prov = r[0] if isinstance(r, tuple) else r['provider']
+        toks = r[1] if isinstance(r, tuple) else r['total_tokens']
+        calls = r[2] if isinstance(r, tuple) else r['total_calls']
+        providers[prov] = {
+            "tokens": toks or 0,
+            "calls": calls or 0
+        }
+        
+    # 2. Total calls
+    cur.execute("SELECT COUNT(*) FROM api_usage;")
+    total_calls_row = cur.fetchone()
+    total_calls = total_calls_row[0] if total_calls_row else 0
+    
+    # 3. Usage by day (last 7 days)
+    if db_url and psycopg2 is not None:
+        cur.execute("""
+            SELECT TO_CHAR(timestamp, 'YYYY-MM-DD') as day, SUM(prompt_tokens + completion_tokens) as tokens, COUNT(*) as calls
+            FROM api_usage
+            WHERE timestamp >= NOW() - INTERVAL '7 days'
+            GROUP BY day
+            ORDER BY day ASC;
+        """)
+    else:
+        cur.execute("""
+            SELECT SUBSTR(timestamp, 1, 10) as day, SUM(prompt_tokens + completion_tokens) as tokens, COUNT(*) as calls
+            FROM api_usage
+            WHERE timestamp >= datetime('now', '-7 days')
+            GROUP BY day
+            ORDER BY day ASC;
+        """)
+    day_rows = cur.fetchall()
+    timeline = []
+    for r in day_rows:
+        timeline.append({
+            "day": r[0] if isinstance(r, tuple) else r['day'],
+            "tokens": r[1] if isinstance(r, tuple) else r['tokens'] or 0,
+            "calls": r[2] if isinstance(r, tuple) else r['calls'] or 0
+        })
+        
+    # 4. Usage by user
+    cur.execute("""
+        SELECT user_id, SUM(prompt_tokens + completion_tokens) as tokens, COUNT(*) as calls
+        FROM api_usage
+        GROUP BY user_id
+        ORDER BY tokens DESC
+        LIMIT 10;
+    """)
+    user_rows = cur.fetchall()
+    users_usage = []
+    for r in user_rows:
+        users_usage.append({
+            "user_id": r[0] if isinstance(r, tuple) else r['user_id'],
+            "tokens": r[1] if isinstance(r, tuple) else r['tokens'] or 0,
+            "calls": r[2] if isinstance(r, tuple) else r['calls'] or 0
+        })
+        
+    cur.close()
+    conn.close()
+    
+    return jsonify({
+        "providers": providers,
+        "total_calls": total_calls,
+        "timeline": timeline,
+        "users": users_usage
+    })
+
 # --- Core App Endpoints ---
 @app.route('/api/settings', methods=['GET', 'POST'])
 @login_required
@@ -1999,38 +2253,13 @@ def chat():
             
         user_prompt = f"السياق (النصوص المرفقة):\n{context_str}\n\nالسؤال: {query}\n\nالإجابة:"
         
-        answer = ""
-        
-        if provider == "gemini":
-            def call_chat():
-                model = genai.GenerativeModel(
-                    model_name="gemini-2.5-flash",
-                    system_instruction=system_prompt
-                )
-                response = model.generate_content(user_prompt)
-                return response.text
-            answer = execute_with_gemini_retry(settings, call_chat)
-            
-        elif provider == "lmstudio":
-            url = settings.get("lmstudio_url", "http://localhost:1234/v1").rstrip('/')
-            chat_endpoint = f"{url}/chat/completions"
-            
-            response = requests.post(
-                chat_endpoint,
-                headers={"Content-Type": "application/json"},
-                json={
-                    "model": settings.get("lmstudio_model", "qwen2.5-7b"),
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    "temperature": 0.3
-                },
-                timeout=60
-            )
-            response.raise_for_status()
-            res_json = response.json()
-            answer = res_json['choices'][0]['message']['content']
+        answer = generate_llm_response(
+            prompt=user_prompt,
+            system_instruction=system_prompt,
+            settings=settings,
+            user_id=user_id,
+            call_type="chat"
+        )
             
         return jsonify({
             "answer": answer,
@@ -2162,28 +2391,12 @@ def generate_contract():
             f"اكتب العقد الآن:"
         )
 
-        answer = ""
-        if provider == "gemini":
-            def call_gen():
-                model = genai.GenerativeModel(model_name="gemini-2.5-flash")
-                response = model.generate_content(prompt)
-                return response.text
-            answer = execute_with_gemini_retry(settings, call_gen)
-
-        elif provider == "lmstudio":
-            url = settings.get("lmstudio_url", "http://localhost:1234/v1").rstrip('/')
-            response = requests.post(
-                f"{url}/chat/completions",
-                headers={"Content-Type": "application/json"},
-                json={
-                    "model": settings.get("lmstudio_model", "qwen2.5-7b"),
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.3
-                },
-                timeout=120
-            )
-            response.raise_for_status()
-            answer = response.json()['choices'][0]['message']['content']
+        answer = generate_llm_response(
+            prompt=prompt,
+            settings=settings,
+            user_id=user_id,
+            call_type="contract"
+        )
 
         return jsonify({"contract": answer})
 
@@ -2247,28 +2460,12 @@ def analyze_document():
             "التحليل القانوني:"
         )
 
-        answer = ""
-        if provider == "gemini":
-            def call_analyze():
-                model = genai.GenerativeModel(model_name="gemini-2.5-flash")
-                response = model.generate_content(prompt)
-                return response.text
-            answer = execute_with_gemini_retry(settings, call_analyze)
-
-        elif provider == "lmstudio":
-            url = settings.get("lmstudio_url", "http://localhost:1234/v1").rstrip('/')
-            response = requests.post(
-                f"{url}/chat/completions",
-                headers={"Content-Type": "application/json"},
-                json={
-                    "model": settings.get("lmstudio_model", "qwen2.5-7b"),
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.3
-                },
-                timeout=120
-            )
-            response.raise_for_status()
-            answer = response.json()['choices'][0]['message']['content']
+        answer = generate_llm_response(
+            prompt=prompt,
+            settings=settings,
+            user_id=user_id,
+            call_type="analyze"
+        )
 
         return jsonify({"analysis": answer})
 
@@ -2326,27 +2523,12 @@ def semantic_search():
                     f"}}"
                 )
 
-                answer = ""
-                if provider == "gemini":
-                    def call_semantic():
-                        model = genai.GenerativeModel(model_name="gemini-2.5-flash")
-                        response = model.generate_content(prompt)
-                        return response.text
-                    answer = execute_with_gemini_retry(settings, call_semantic)
-                elif provider == "lmstudio":
-                    url = settings.get("lmstudio_url", "http://localhost:1234/v1").rstrip('/')
-                    response = requests.post(
-                        f"{url}/chat/completions",
-                        headers={"Content-Type": "application/json"},
-                        json={
-                            "model": settings.get("lmstudio_model", "qwen2.5-7b"),
-                            "messages": [{"role": "user", "content": prompt}],
-                            "temperature": 0.2
-                        },
-                        timeout=60
-                    )
-                    response.raise_for_status()
-                    answer = response.json()['choices'][0]['message']['content']
+                answer = generate_llm_response(
+                    prompt=prompt,
+                    settings=settings,
+                    user_id=user_id,
+                    call_type="semantic_search"
+                )
 
                 # Clean markdown blocks if any
                 clean_text = answer.strip()
@@ -2469,27 +2651,12 @@ def translate_text():
             f"أرجع الترجمة فقط ولا تضف أي تعليقات أو شروحات إضافية."
         )
 
-        translated = ""
-        if provider == "gemini":
-            def call_trans():
-                model = genai.GenerativeModel(model_name="gemini-2.5-flash")
-                response = model.generate_content(prompt)
-                return response.text.strip()
-            translated = execute_with_gemini_retry(settings, call_trans)
-        elif provider == "lmstudio":
-            url = settings.get("lmstudio_url", "http://localhost:1234/v1").rstrip('/')
-            response = requests.post(
-                f"{url}/chat/completions",
-                headers={"Content-Type": "application/json"},
-                json={
-                    "model": settings.get("lmstudio_model", "qwen2.5-7b"),
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.2
-                },
-                timeout=60
-            )
-            response.raise_for_status()
-            translated = response.json()['choices'][0]['message']['content'].strip()
+        translated = generate_llm_response(
+            prompt=prompt,
+            settings=settings,
+            user_id=user_id,
+            call_type="translate"
+        ).strip()
 
         return jsonify({"translated": translated})
 
@@ -2566,26 +2733,12 @@ def compare_texts():
                     f"التحليل المقارن:"
                 )
 
-                if provider == "gemini":
-                    def call_compare():
-                        model = genai.GenerativeModel(model_name="gemini-2.5-flash")
-                        response = model.generate_content(prompt)
-                        return response.text.strip()
-                    analysis = execute_with_gemini_retry(settings, call_compare)
-                elif provider == "lmstudio":
-                    url = settings.get("lmstudio_url", "http://localhost:1234/v1").rstrip('/')
-                    response = requests.post(
-                        f"{url}/chat/completions",
-                        headers={"Content-Type": "application/json"},
-                        json={
-                            "model": settings.get("lmstudio_model", "qwen2.5-7b"),
-                            "messages": [{"role": "user", "content": prompt}],
-                            "temperature": 0.3
-                        },
-                        timeout=60
-                    )
-                    response.raise_for_status()
-                    analysis = response.json()['choices'][0]['message']['content'].strip()
+                analysis = generate_llm_response(
+                    prompt=prompt,
+                    settings=settings,
+                    user_id=user_id,
+                    call_type="compare"
+                ).strip()
             except Exception as ai_err:
                 print(f"AI comparison analysis failed: {ai_err}")
                 analysis = f"تعذر إجراء التحليل الذكي بسبب: {str(ai_err)}. تم توفير المقارنة البصرية فقط."
@@ -2637,27 +2790,12 @@ def check_legislative_updates():
             "]"
         )
 
-        answer = ""
-        if provider == "gemini":
-            def call_updates():
-                model = genai.GenerativeModel(model_name="gemini-2.5-flash")
-                response = model.generate_content(prompt)
-                return response.text
-            answer = execute_with_gemini_retry(settings, call_updates)
-        elif provider == "lmstudio":
-            url = settings.get("lmstudio_url", "http://localhost:1234/v1").rstrip('/')
-            response = requests.post(
-                f"{url}/chat/completions",
-                headers={"Content-Type": "application/json"},
-                json={
-                    "model": settings.get("lmstudio_model", "qwen2.5-7b"),
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.5
-                },
-                timeout=60
-            )
-            response.raise_for_status()
-            answer = response.json()['choices'][0]['message']['content']
+        answer = generate_llm_response(
+            prompt=prompt,
+            settings=settings,
+            user_id=user_id,
+            call_type="updates"
+        )
 
         # Clean JSON block
         clean_text = answer.strip()

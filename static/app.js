@@ -294,6 +294,8 @@ async function handleEmailSignup() {
     }
 }
 
+let apiUsageChartInstance = null;
+
 async function loadAdminStats() {
     try {
         const res = await fetch('/api/admin/stats');
@@ -303,9 +305,147 @@ async function loadAdminStats() {
         document.getElementById('admin-stat-docs').textContent = stats.total_docs;
         document.getElementById('admin-stat-chunks').textContent = stats.total_chunks;
         document.getElementById('admin-stat-size').textContent = `${stats.index_size_mb} MB`;
+        
+        // Load API Usage Stats
+        loadApiUsageStats();
     } catch (e) {
         console.error("Failed to load admin stats: ", e);
     }
+}
+
+async function loadApiUsageStats() {
+    try {
+        const res = await fetch('/api/admin/usage');
+        if (!res.ok) return;
+        const usageData = await res.json();
+        
+        const geminiTokens = usageData.providers.gemini ? usageData.providers.gemini.tokens : 0;
+        const openrouterTokens = usageData.providers.openrouter ? usageData.providers.openrouter.tokens : 0;
+        const totalCalls = usageData.total_calls;
+        
+        const formatNumber = (num) => num.toLocaleString();
+        
+        document.getElementById('admin-stat-gemini-tokens').textContent = `${formatNumber(geminiTokens)} Token`;
+        document.getElementById('admin-stat-openrouter-tokens').textContent = `${formatNumber(openrouterTokens)} Token`;
+        document.getElementById('admin-stat-total-calls').textContent = `${formatNumber(totalCalls)} طلب`;
+        
+        // Render Chart
+        renderUsageChart(usageData.timeline);
+    } catch (e) {
+        console.error("Failed to load API usage stats: ", e);
+    }
+}
+
+function renderUsageChart(timeline) {
+    const ctx = document.getElementById('apiUsageChart');
+    if (!ctx) return;
+    
+    // Destroy previous instance to avoid layout overlapping
+    if (apiUsageChartInstance) {
+        apiUsageChartInstance.destroy();
+    }
+    
+    // Sort timeline chronologically (just in case)
+    timeline.sort((a, b) => new Date(a.day) - new Date(b.day));
+    
+    const labels = timeline.map(item => item.day);
+    const tokensData = timeline.map(item => item.tokens);
+    const callsData = timeline.map(item => item.calls);
+    
+    // If no data, show message or defaults
+    if (labels.length === 0) {
+        labels.push(new Date().toISOString().split('T')[0]);
+        tokensData.push(0);
+        callsData.push(0);
+    }
+    
+    apiUsageChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'الرموز المستهلكة (Tokens)',
+                    data: tokensData,
+                    backgroundColor: 'rgba(16, 185, 129, 0.4)',
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    borderWidth: 2,
+                    borderRadius: 4,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'عدد الطلبات (Calls)',
+                    data: callsData,
+                    type: 'line',
+                    borderColor: 'rgba(165, 180, 252, 1)',
+                    backgroundColor: 'rgba(165, 180, 252, 0.1)',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#fff',
+                    pointBorderWidth: 2,
+                    tension: 0.3,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        color: '#94a3b8',
+                        font: { family: 'Cairo', size: 11 }
+                    }
+                },
+                tooltip: {
+                    titleFont: { family: 'Cairo' },
+                    bodyFont: { family: 'Cairo' }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: '#64748b',
+                        font: { family: 'Cairo', size: 10 }
+                    },
+                    grid: { color: 'rgba(255,255,255,0.03)' }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    ticks: {
+                        color: '#64748b',
+                        callback: function(value) {
+                            if (value >= 1000) return (value / 1000) + 'k';
+                            return value;
+                        }
+                    },
+                    grid: { color: 'rgba(255,255,255,0.03)' },
+                    title: {
+                        display: true,
+                        text: 'إجمالي الرموز المستهلكة',
+                        color: '#64748b',
+                        font: { family: 'Cairo', size: 10 }
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    ticks: { color: '#64748b' },
+                    title: {
+                        display: true,
+                        text: 'عدد الطلبات',
+                        color: '#64748b',
+                        font: { family: 'Cairo', size: 10 }
+                    }
+                }
+            }
+        }
+    });
 }
 
 // Voice input (Speech-to-Text) using Web Speech API
@@ -658,6 +798,8 @@ async function loadSettingsFromServer() {
         state.provider = settings.provider;
         state.embedding_provider = settings.embedding_provider || 'local';
         state.gemini_api_key = settings.gemini_api_key;
+        state.openrouter_api_key = settings.openrouter_api_key || '';
+        state.openrouter_model = settings.openrouter_model || 'google/gemini-2.5-flash';
         state.lmstudio_url = settings.lmstudio_url;
         state.lmstudio_model = settings.lmstudio_model;
         state.local_library_path = settings.local_library_path;
@@ -681,6 +823,12 @@ function updateSettingsModalFields() {
     const embedProviderSelect = document.getElementById('embed-provider-select');
     if (embedProviderSelect) embedProviderSelect.value = state.embedding_provider || 'local';
     geminiApiKeyInput.value = state.gemini_api_key;
+    
+    const openrouterApiKeyInput = document.getElementById('openrouter-api-key');
+    const openrouterModelInput = document.getElementById('openrouter-model-input');
+    if (openrouterApiKeyInput) openrouterApiKeyInput.value = state.openrouter_api_key || '';
+    if (openrouterModelInput) openrouterModelInput.value = state.openrouter_model || 'google/gemini-2.5-flash';
+    
     lmstudioUrlInput.value = state.lmstudio_url;
     lmstudioModelInput.value = state.lmstudio_model;
     ocrEnabledCheckbox.checked = state.ocr_enabled || false;
@@ -694,18 +842,29 @@ function updateSettingsModalFields() {
 }
 
 function toggleConfigSections(provider) {
+    const openrouterConfigSection = document.getElementById('openrouter-config-section');
     if (provider === 'gemini') {
         geminiConfigSection.style.display = 'block';
         lmstudioConfigSection.style.display = 'none';
+        if (openrouterConfigSection) openrouterConfigSection.style.display = 'none';
+    } else if (provider === 'openrouter') {
+        geminiConfigSection.style.display = 'none';
+        lmstudioConfigSection.style.display = 'none';
+        if (openrouterConfigSection) openrouterConfigSection.style.display = 'block';
     } else {
         geminiConfigSection.style.display = 'none';
         lmstudioConfigSection.style.display = 'block';
+        if (openrouterConfigSection) openrouterConfigSection.style.display = 'none';
     }
 }
 
 function updateHeaderStatus() {
-    const isGemini = state.provider === 'gemini';
-    const activeLabel = isGemini ? 'Google Gemini API' : `محلي: LM Studio (${state.lmstudio_model})`;
+    let activeLabel = 'Google Gemini API';
+    if (state.provider === 'openrouter') {
+        activeLabel = `OpenRouter (${state.openrouter_model})`;
+    } else if (state.provider === 'lmstudio') {
+        activeLabel = `محلي: LM Studio (${state.lmstudio_model})`;
+    }
     
     if (activeProviderLabel) {
         activeProviderLabel.textContent = `النموذج الفعال: ${activeLabel}`;
@@ -1997,12 +2156,30 @@ function setupSettingsModalHandlers() {
             `<i class="fa-solid fa-eye"></i>` : `<i class="fa-solid fa-eye-slash"></i>`;
     });
     
+    // OpenRouter Visibility toggle
+    const toggleOrApiKeyVisBtn = document.getElementById('toggle-or-api-key-visibility');
+    const openrouterApiKeyInput = document.getElementById('openrouter-api-key');
+    if (toggleOrApiKeyVisBtn && openrouterApiKeyInput) {
+        toggleOrApiKeyVisBtn.addEventListener('click', () => {
+            const type = openrouterApiKeyInput.type === 'password' ? 'text' : 'password';
+            openrouterApiKeyInput.type = type;
+            toggleOrApiKeyVisBtn.innerHTML = type === 'password' ? 
+                `<i class="fa-solid fa-eye"></i>` : `<i class="fa-solid fa-eye-slash"></i>`;
+        });
+    }
+    
     saveSettingsBtn.addEventListener('click', async () => {
         const local_library_path = libraryPathInput.value.trim();
         const provider = providerSelect.value;
         const embedProviderSelect = document.getElementById('embed-provider-select');
         const embedding_provider = embedProviderSelect ? embedProviderSelect.value : 'local';
         const gemini_api_key = geminiApiKeyInput.value.trim();
+        
+        const openrouterApiKeyInputEl = document.getElementById('openrouter-api-key');
+        const openrouterModelInputEl = document.getElementById('openrouter-model-input');
+        const openrouter_api_key = openrouterApiKeyInputEl ? openrouterApiKeyInputEl.value.trim() : '';
+        const openrouter_model = openrouterModelInputEl ? openrouterModelInputEl.value.trim() : 'google/gemini-2.5-flash';
+        
         const lmstudio_url = lmstudioUrlInput.value.trim();
         const lmstudio_model = lmstudioModelInput.value.trim();
         const ocr_enabled = ocrEnabledCheckbox.checked;
@@ -2016,6 +2193,10 @@ function setupSettingsModalHandlers() {
             showToast("يُرجى إدخال مفتاح Gemini API الخاص بك.", true);
             return;
         }
+        if (provider === 'openrouter' && !openrouter_api_key) {
+            showToast("يُرجى إدخال مفتاح OpenRouter API الخاص بك.", true);
+            return;
+        }
         
         try {
             const response = await fetch('/api/settings', {
@@ -2026,6 +2207,8 @@ function setupSettingsModalHandlers() {
                     provider,
                     embedding_provider,
                     gemini_api_key,
+                    openrouter_api_key,
+                    openrouter_model,
                     lmstudio_url,
                     lmstudio_model,
                     ocr_enabled
@@ -2038,6 +2221,8 @@ function setupSettingsModalHandlers() {
             state.provider = provider;
             state.embedding_provider = embedding_provider;
             state.gemini_api_key = gemini_api_key;
+            state.openrouter_api_key = openrouter_api_key;
+            state.openrouter_model = openrouter_model;
             state.lmstudio_url = lmstudio_url;
             state.lmstudio_model = lmstudio_model;
             state.ocr_enabled = ocr_enabled;

@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css?v=1.0.6">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <!-- Gorgeous Glassmorphism Login Screen -->
@@ -300,6 +301,28 @@
                                     <div style="font-size: 0.8rem; color: var(--text-muted); text-align: right;">حجم الفهرس على القرص</div>
                                     <div id="admin-stat-size" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-orange); margin-top: 4px; text-align: right;">0.00 MB</div>
                                 </div>
+                            </div>
+                            
+                            <hr style="border: 0; border-top: 1px solid var(--border); margin: 24px 0;">
+                            <h4 style="margin-bottom: 12px; font-size: 1rem; color: var(--text-color); display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-chart-line"></i> استهلاك الـ API والرموز (Tokens)</h4>
+                            <div class="admin-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                                <div class="admin-stat-box" style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+                                    <div style="font-size: 0.8rem; color: var(--text-muted); text-align: right;">إجمالي استهلاك Gemini</div>
+                                    <div id="admin-stat-gemini-tokens" style="font-size: 1.3rem; font-weight: bold; color: #10b981; margin-top: 4px; text-align: right;">0 Token</div>
+                                </div>
+                                <div class="admin-stat-box" style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+                                    <div style="font-size: 0.8rem; color: var(--text-muted); text-align: right;">إجمالي استهلاك OpenRouter</div>
+                                    <div id="admin-stat-openrouter-tokens" style="font-size: 1.3rem; font-weight: bold; color: #3b82f6; margin-top: 4px; text-align: right;">0 Token</div>
+                                </div>
+                                <div class="admin-stat-box" style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+                                    <div style="font-size: 0.8rem; color: var(--text-muted); text-align: right;">إجمالي طلبات الـ API</div>
+                                    <div id="admin-stat-total-calls" style="font-size: 1.3rem; font-weight: bold; color: var(--accent-purple); margin-top: 4px; text-align: right;">0 طلب</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Graph container -->
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--border); border-radius: 6px; padding: 15px; position: relative; height: 260px; margin-top: 15px;">
+                                <canvas id="apiUsageChart"></canvas>
                             </div>
                         </div>
                     </div>
@@ -1007,6 +1030,7 @@
                     <label for="provider-select">مزود الخدمة اللغوية للدردشة والتحليل:</label>
                     <select id="provider-select" class="form-control">
                         <option value="gemini">Google Gemini API (سريع ودقيق للغاية)</option>
+                        <option value="openrouter">OpenRouter API (سحابي - يدعم موديلات متنوعة)</option>
                         <option value="lmstudio">LM Studio (تشغيل محلي بالكامل/أوفلاين)</option>
                     </select>
                 </div>
@@ -1039,6 +1063,25 @@
                             تمكين قراءة الكتب المصورة (OCR)
                             <span style="color: #ff6b6b; font-size: 0.82em; display: block; margin-top: 2px;">(تنبيه: قد يفرض رسوم معالجة صور على المفاتيح المدفوعة)</span>
                         </label>
+                    </div>
+                </div>
+
+                <!-- OpenRouter Config -->
+                <div class="config-section" id="openrouter-config-section" style="display: none;">
+                    <div class="form-group">
+                        <label for="openrouter-api-key">مفتاح API الخاص بـ OpenRouter:</label>
+                        <div class="input-with-action">
+                            <input type="password" id="openrouter-api-key" class="form-control" placeholder="sk-or-v1-...">
+                            <button class="btn btn-secondary" id="toggle-or-api-key-visibility" type="button">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                        <small class="help-text">أدخل مفتاح OpenRouter الخاص بك (يبدأ بـ sk-or-v1-).</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="openrouter-model-input">اسم النموذج (Model Identifier):</label>
+                        <input type="text" id="openrouter-model-input" class="form-control" placeholder="google/gemini-2.5-flash" value="google/gemini-2.5-flash">
+                        <small class="help-text">مثال: <code>google/gemini-2.5-flash</code> أو <code>meta-llama/llama-3-8b-instruct:free</code></small>
                     </div>
                 </div>
 
