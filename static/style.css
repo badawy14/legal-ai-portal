@@ -1016,7 +1016,10 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 16px;
     width: 90%;
-    max-width: 500px;
+    max-width: 550px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
     box-shadow: 0 24px 48px rgba(0,0,0,0.5);
     overflow: hidden;
     transform: translateY(20px);
@@ -1048,6 +1051,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    overflow-y: auto;
+    flex: 1;
 }
 
 .modal-footer {
