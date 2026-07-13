@@ -48,6 +48,20 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if os.environ.get("SPACE_ID") and os.path.exists("/data"):
     DATA_DIR = "/data"
     print("Running on Hugging Face Spaces. Using persistent storage bucket at /data.", flush=True)
+    
+    # Copy default data files to persistent storage if they don't exist
+    import shutil
+    default_data_dir = os.path.join(BASE_DIR, 'data')
+    if os.path.exists(default_data_dir):
+        for filename in os.listdir(default_data_dir):
+            src_file = os.path.join(default_data_dir, filename)
+            dst_file = os.path.join(DATA_DIR, filename)
+            if os.path.isfile(src_file) and not os.path.exists(dst_file):
+                try:
+                    shutil.copy2(src_file, dst_file)
+                    print(f"Copied default data file {filename} to {dst_file}", flush=True)
+                except Exception as e:
+                    print(f"Failed to copy {filename}: {e}", flush=True)
 else:
     DATA_DIR = os.path.join(BASE_DIR, 'data')
 
