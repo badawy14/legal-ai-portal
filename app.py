@@ -1929,6 +1929,109 @@ def get_api_usage():
         "users": users_usage
     })
 
+@app.route('/api/admin/quota', methods=['GET'])
+@admin_required
+def get_api_quota():
+    user_id = session.get('user_id')
+    settings = load_settings(user_id)
+    provider = settings.get("provider", "gemini")
+    
+    # Auto-detect OpenRouter
+    api_key = settings.get("gemini_api_key", "").strip()
+    if provider == "gemini" and api_key.startswith("sk-or-"):
+        provider = "openrouter"
+        settings["openrouter_api_key"] = api_key
+        
+    conn = get_db_connection()
+    cur = conn.cursor()
+    db_url = os.environ.get("DATABASE_URL")
+    
+    # Count requests today (last 24 hours)
+    if db_url and psycopg2 is not None:
+        cur.execute("SELECT COUNT(*) FROM api_usage WHERE timestamp >= NOW() - INTERVAL '24 hours';")
+    else:
+        cur.execute("SELECT COUNT(*) FROM api_usage WHERE timestamp >= datetime('now', '-24 hours');")
+    today_calls_row = cur.fetchone()
+    today_calls = today_calls_row[0] if today_calls_row else 0
+    cur.close()
+    conn.close()
+    
+    if provider == "gemini":
+        limit = 1500
+        remaining = max(0, limit - today_calls)
+        return jsonify({
+            "provider": "gemini",
+            "limit_type": "requests",
+            "limit": limit,
+            "usage": today_calls,
+            "remaining": remaining,
+            "status_text": "Gemini Free (1,500 طلب/يوم)",
+            "percentage": round((today_calls / limit) * 100, 1) if limit else 0
+        })
+        
+    elif provider == "openrouter":
+        key = settings.get("openrouter_api_key", "").strip()
+        if not key:
+            key = settings.get("gemini_api_key", "").strip()
+            
+        headers = {
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json"
+        }
+        try:
+            r = requests.get("https://openrouter.ai/api/v1/auth/key", headers=headers, timeout=10)
+            if r.status_code == 200:
+                res_json = r.json()
+                data = res_json.get("data", {})
+                limit_val = data.get("limit") # limit in USD
+                usage_val = data.get("usage", 0.0) # usage in USD
+                
+                if limit_val is not None:
+                    limit_val = float(limit_val)
+                    usage_val = float(usage_val)
+                    remaining = max(0.0, limit_val - usage_val)
+                    percentage = round((usage_val / limit_val) * 100, 1)
+                else:
+                    limit_val = "غير محدود"
+                    remaining = "غير محدود"
+                    percentage = 0.0
+                    
+                return jsonify({
+                    "provider": "openrouter",
+                    "limit_type": "usd",
+                    "limit": limit_val,
+                    "usage": round(usage_val, 4),
+                    "remaining": round(remaining, 4) if isinstance(remaining, float) else remaining,
+                    "status_text": f"OpenRouter ({data.get('label', 'Active Key')})",
+                    "percentage": percentage
+                })
+        except Exception:
+            pass
+            
+        # Fallback if request fails
+        return jsonify({
+            "provider": "openrouter",
+            "limit_type": "calls",
+            "limit": "غير معروف",
+            "usage": today_calls,
+            "remaining": "غير معروف",
+            "status_text": "OpenRouter API (تعذر جلب الكوتة)",
+            "percentage": 0
+        })
+        
+    elif provider == "lmstudio":
+        return jsonify({
+            "provider": "lmstudio",
+            "limit_type": "unlimited",
+            "limit": "غير محدود",
+            "usage": today_calls,
+            "remaining": "غير محدود",
+            "status_text": "LM Studio (أوفلاين - بلا حدود)",
+            "percentage": 0
+        })
+        
+    return jsonify({"error": "Unknown provider"}), 400
+
 # --- Core App Endpoints ---
 @app.route('/api/settings', methods=['GET', 'POST'])
 @login_required

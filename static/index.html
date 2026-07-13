@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=1.0.8">
+    <link rel="stylesheet" href="style.css?v=1.0.9">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -317,6 +317,16 @@
                                 <div class="admin-stat-box" style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
                                     <div style="font-size: 0.8rem; color: var(--text-muted); text-align: right;">إجمالي طلبات الـ API</div>
                                     <div id="admin-stat-total-calls" style="font-size: 1.3rem; font-weight: bold; color: var(--accent-purple); margin-top: 4px; text-align: right;">0 طلب</div>
+                                </div>
+                                <div class="admin-stat-box" style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 6px; border: 1px solid var(--border); grid-column: span 3;">
+                                    <div style="font-size: 0.85rem; color: var(--text-muted); text-align: right; display: flex; justify-content: space-between; align-items: center;">
+                                        <span>حالة كوتة المفتاح النشط (<span id="active-key-provider-name">Gemini</span>)</span>
+                                        <span id="active-key-quota-text" style="font-weight: bold; color: var(--primary);">الاستخدام: 0 / 1500</span>
+                                    </div>
+                                    <div class="progress-bar-container" style="background: rgba(255,255,255,0.05); height: 8px; border-radius: 4px; margin-top: 8px; overflow: hidden; position: relative;">
+                                        <div id="active-key-quota-progress" style="background: var(--primary); width: 0%; height: 100%; transition: width 0.3s ease;"></div>
+                                    </div>
+                                    <small id="active-key-quota-hint" class="help-text" style="display: block; margin-top: 4px; text-align: right; color: var(--text-muted); font-size: 0.75rem;">متبقي: 1500 طلب اليوم</small>
                                 </div>
                             </div>
                             
@@ -1196,6 +1206,6 @@
     <!-- Notification Toast -->
     <div class="toast" id="toast"></div>
 
-    <script src="app.js?v=1.0.8"></script>
+    <script src="app.js?v=1.0.9"></script>
 </body>
 </html>

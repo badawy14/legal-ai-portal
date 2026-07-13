@@ -331,8 +331,48 @@ async function loadApiUsageStats() {
         
         // Render Chart
         renderUsageChart(usageData.timeline);
+        
+        // Fetch and show Quota
+        loadApiQuotaStats();
     } catch (e) {
         console.error("Failed to load API usage stats: ", e);
+    }
+}
+
+async function loadApiQuotaStats() {
+    try {
+        const res = await fetch('/api/admin/quota');
+        if (!res.ok) return;
+        const quota = await res.json();
+        
+        const providerNameEl = document.getElementById('active-key-provider-name');
+        const quotaTextEl = document.getElementById('active-key-quota-text');
+        const quotaProgressEl = document.getElementById('active-key-quota-progress');
+        const quotaHintEl = document.getElementById('active-key-quota-hint');
+        
+        if (providerNameEl) providerNameEl.textContent = quota.status_text || quota.provider;
+        
+        if (quotaTextEl && quotaProgressEl && quotaHintEl) {
+            if (quota.limit_type === 'requests') {
+                quotaTextEl.textContent = `الاستخدام اليومي: ${quota.usage} / ${quota.limit} طلب`;
+                quotaHintEl.textContent = `المتبقي اليوم: ${quota.remaining} طلب`;
+                quotaProgressEl.style.width = `${quota.percentage}%`;
+                quotaProgressEl.style.backgroundColor = quota.percentage > 85 ? '#ef4444' : (quota.percentage > 60 ? '#f59e0b' : '#10b981');
+            } else if (quota.limit_type === 'usd') {
+                const limitText = typeof quota.limit === 'number' ? `$${quota.limit}` : quota.limit;
+                const remainingText = typeof quota.remaining === 'number' ? `$${quota.remaining}` : quota.remaining;
+                quotaTextEl.textContent = `الرصيد المستهلك: $${quota.usage} / ${limitText}`;
+                quotaHintEl.textContent = `الرصيد المتبقي: ${remainingText}`;
+                quotaProgressEl.style.width = `${quota.percentage}%`;
+                quotaProgressEl.style.backgroundColor = quota.percentage > 85 ? '#ef4444' : (quota.percentage > 60 ? '#f59e0b' : '#10b981');
+            } else {
+                quotaTextEl.textContent = `الاستخدام: بلا حدود`;
+                quotaHintEl.textContent = `الطلبات اليوم: ${quota.usage}`;
+                quotaProgressEl.style.width = `0%`;
+            }
+        }
+    } catch (e) {
+        console.error("Failed to load API quota stats: ", e);
     }
 }
 
