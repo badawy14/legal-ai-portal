@@ -33,6 +33,24 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+/* Custom Scrollbars (Webkit) */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
 }
 
 body {
@@ -126,12 +144,27 @@ body {
 /* Navigation Menu Items */
 .sidebar-menu {
     list-style-type: none;
-    padding: 16px 8px;
+    padding: 16px 8px 16px 16px;
     display: flex;
     flex-direction: column;
     gap: 6px;
     flex-grow: 1;
     overflow-y: auto;
+}
+
+/* Custom Scrollbars inside Sidebar */
+.sidebar-menu::-webkit-scrollbar {
+    width: 4px;
+}
+.sidebar-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar-menu::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+}
+.sidebar-menu::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .menu-item {
@@ -2586,20 +2619,20 @@ code:not(pre code) {
         display: flex !important;
         align-items: center;
         justify-content: center;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid var(--border-color);
-        width: 30px;
-        height: 30px;
+        background: rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
-        color: var(--text-main);
+        color: #ffffff !important;
         cursor: pointer;
         font-size: 14px;
         transition: all var(--transition-speed) ease;
     }
     .sidebar-close-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: var(--error-color);
-        border-color: rgba(239, 68, 68, 0.3);
+        background: rgba(239, 68, 68, 0.2) !important;
+        color: var(--error-color) !important;
+        border-color: rgba(239, 68, 68, 0.4) !important;
     }
 
     .sidebar-header {
@@ -2611,9 +2644,14 @@ code:not(pre code) {
 
     .logo-area {
         gap: 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        white-space: nowrap !important;
     }
     .logo-area h2 {
         font-size: 16px !important;
+        white-space: nowrap !important;
+        margin: 0 !important;
     }
     .logo-icon {
         font-size: 20px !important;
@@ -2621,6 +2659,7 @@ code:not(pre code) {
     .logo-area .badge {
         font-size: 8px !important;
         padding: 1px 4px !important;
+        white-space: nowrap !important;
     }
 
     /* Sidebar navigation menu lists */
